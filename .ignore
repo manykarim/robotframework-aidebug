@@ -1,0 +1,19 @@
+# Shared ignore rules for local tooling such as rg/fd/grep wrappers
+__pycache__/
+*.py[oc]
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+build/
+dist/
+wheels/
+*.egg-info/
+node_modules/
+vscode-extension/node_modules/
+.venv/
+.DS_Store
+.idea/
+.vscode/
+*.log

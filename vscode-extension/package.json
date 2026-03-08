@@ -1,0 +1,96 @@
+{
+  "name": "robotframework-aidebug-vscode",
+  "displayName": "Robot Framework AI Debug",
+  "description": "Standalone VS Code integration for the robotframework-aidebug backend.",
+  "version": "0.1.0",
+  "publisher": "robotframework-aidebug",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://example.invalid/robotframework-aidebug.git"
+  },
+  "bugs": {
+    "url": "https://example.invalid/robotframework-aidebug/issues"
+  },
+  "homepage": "https://example.invalid/robotframework-aidebug",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "robotframework",
+    "debug",
+    "ai",
+    "agent"
+  ],
+  "activationEvents": [
+    "onCommand:robotframeworkAidebug.startBackend",
+    "onCommand:robotframeworkAidebug.stopBackend",
+    "onCommand:robotframeworkAidebug.showState",
+    "onCommand:robotframeworkAidebug.showVariables",
+    "onCommand:robotframeworkAidebug.resetDemoSession",
+    "onCommand:robotframeworkAidebug.runRecoveryJourney"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "robotframeworkAidebug.startBackend",
+        "title": "Robot Framework AI Debug: Start Backend"
+      },
+      {
+        "command": "robotframeworkAidebug.stopBackend",
+        "title": "Robot Framework AI Debug: Stop Backend"
+      },
+      {
+        "command": "robotframeworkAidebug.showState",
+        "title": "Robot Framework AI Debug: Show State"
+      },
+      {
+        "command": "robotframeworkAidebug.showVariables",
+        "title": "Robot Framework AI Debug: Show Variables"
+      },
+      {
+        "command": "robotframeworkAidebug.resetDemoSession",
+        "title": "Robot Framework AI Debug: Reset Demo Session"
+      },
+      {
+        "command": "robotframeworkAidebug.runRecoveryJourney",
+        "title": "Robot Framework AI Debug: Run Recovery Journey"
+      }
+    ],
+    "configuration": {
+      "title": "Robot Framework AI Debug",
+      "properties": {
+        "robotframeworkAidebug.backendExecutable": {
+          "type": "string",
+          "default": "robotframework-aidebug-stdio",
+          "description": "Executable used to start the standalone backend. Override this for manual or virtualenv-based installations."
+        },
+        "robotframeworkAidebug.backendArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional arguments passed to the backend executable."
+        },
+        "robotframeworkAidebug.autoStartBackend": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the backend when a command needs it."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "package:vsix": "mkdir -p dist && npx @vscode/vsce package --out dist/robotframework-aidebug-vscode-0.1.0.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.2"
+  }
+}

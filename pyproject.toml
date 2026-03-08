@@ -1,0 +1,28 @@
+[project]
+name = "robotframework-aidebug"
+version = "0.1.0"
+description = "Local reference implementation of AI-controllable Robot Framework debugging."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "robotframework>=7.4.2",
+]
+
+[project.scripts]
+robotframework-aidebug = "robotframework_aidebug.cli:main"
+robotframework-aidebug-stdio = "robotframework_aidebug.stdio_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]

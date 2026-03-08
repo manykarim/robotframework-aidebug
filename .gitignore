@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+build/
+dist/
+wheels/
+*.egg-info
+node_modules/
+vscode-extension/node_modules/
+*.log
+
+# Virtual environments
+.venv
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
