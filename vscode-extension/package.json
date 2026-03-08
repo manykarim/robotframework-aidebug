@@ -7,12 +7,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://example.invalid/robotframework-aidebug.git"
+    "url": "https://github.com/manykarim/robotframework-aidebug.git"
   },
   "bugs": {
-    "url": "https://example.invalid/robotframework-aidebug/issues"
+    "url": "https://github.com/manykarim/robotframework-aidebug/issues"
   },
-  "homepage": "https://example.invalid/robotframework-aidebug",
+  "homepage": "https://github.com/manykarim/robotframework-aidebug",
   "engines": {
     "vscode": "^1.95.0"
   },

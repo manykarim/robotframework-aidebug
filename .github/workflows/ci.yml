@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync dependencies
+        run: uv sync
+      - name: Run backend tests
+        run: uv run pytest --cov=robotframework_aidebug --cov-report=term-missing
+
+  vscode-extension:
+    name: VS Code Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - name: Install backend
+        run: |
+          uv sync
+          uv pip install .
+      - name: Install extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+      - name: Run extension tests
+        working-directory: vscode-extension
+        run: npm test
+      - name: Build VSIX
+        working-directory: vscode-extension
+        run: npm run package:vsix
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: robotframework-aidebug-vsix
+          path: vscode-extension/dist/*.vsix

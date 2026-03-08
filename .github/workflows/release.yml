@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'backend-v*'
+      - 'vscode-v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: vscode-extension/package-lock.json
+      - name: Install backend dependencies
+        run: uv sync
+      - name: Build backend distributions
+        run: uv build
+      - name: Install extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+      - name: Build VSIX
+        working-directory: vscode-extension
+        run: npm run package:vsix
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            vscode-extension/dist/*.vsix
+          generate_release_notes: true

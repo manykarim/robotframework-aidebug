@@ -112,4 +112,4 @@ This package is already prepared for later publishing with:
 - VSIX packaging command
 - categories, keywords, and configuration schema
 
-Before publishing, replace the placeholder repository, bugs, and homepage URLs with the final project URLs.
+Before publishing to the Marketplace, confirm the publisher identity and keep the repository metadata aligned with the final public project URLs.
