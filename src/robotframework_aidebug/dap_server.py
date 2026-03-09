@@ -17,7 +17,7 @@ class DapApplication:
 
     def launch(self, arguments: dict[str, Any]) -> dict[str, Any]:
         mode_name = arguments.get("mode", AgentMode.FULL_CONTROL.value)
-        source = arguments.get("program") or arguments.get("source") or "tests/checkout.robot"
+        source = arguments.get("program") or arguments.get("source") or "demo.robot"
         title = arguments.get("name") or Path(source).stem or "robotframework-aidebug"
         try:
             mode = AgentMode(mode_name)

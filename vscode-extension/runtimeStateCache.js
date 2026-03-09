@@ -64,7 +64,7 @@ class RuntimeStateCache {
   }
 
   getSessionSource(sessionId) {
-    return this.sessionSources.get(sessionId) || 'tests/checkout.robot';
+    return this.sessionSources.get(sessionId) || 'demo.robot';
   }
 }
 

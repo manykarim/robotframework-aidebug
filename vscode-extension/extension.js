@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const { BackendClient } = require('./backendClient');
 const { AidebugDebugAdapterFactory, AidebugDebugConfigurationProvider } = require('./debugAdapterFactory');
+const { defaultRobotProgram } = require('./debugLaunchConfig');
 const { runRecoveryJourney } = require('./journeys');
 const { RuntimeStateCache } = require('./runtimeStateCache');
 const { SessionRouter } = require('./sessionRouter');
@@ -60,7 +61,18 @@ async function withTransport(action) {
 }
 
 function register(context, command, handler) {
-  context.subscriptions.push(vscode.commands.registerCommand(command, handler));
+  context.subscriptions.push(vscode.commands.registerCommand(command, async (...args) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      getOutput().appendLine(`[command-error] ${command}: ${error.stack || error.message}`);
+      const choice = await vscode.window.showErrorMessage(error.message, 'Open Output');
+      if (choice === 'Open Output') {
+        getOutput().show(true);
+      }
+      throw error;
+    }
+  }));
 }
 
 async function showJson(title, payload) {
@@ -81,8 +93,9 @@ async function showStaticContext() {
 
 async function activate(context) {
   const configuration = getConfig();
-  const adapterFactory = new AidebugDebugAdapterFactory(configuration);
-  const configProvider = new AidebugDebugConfigurationProvider(configuration);
+  const channel = getOutput();
+  const adapterFactory = new AidebugDebugAdapterFactory(configuration, channel, vscode);
+  const configProvider = new AidebugDebugConfigurationProvider(configuration, channel, vscode);
   context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('robotframework-aidebug', adapterFactory));
   context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('robotframework-aidebug', configProvider));
 
@@ -107,16 +120,20 @@ async function activate(context) {
   });
 
   register(context, 'robotframeworkAidebug.startEmbeddedSession', async () => {
+    const program = defaultRobotProgram(vscode);
+    if (!program) {
+      throw new Error('Open a .robot file before starting the embedded session, or configure "program" in launch.json.');
+    }
     const started = await vscode.debug.startDebugging(undefined, {
       type: 'robotframework-aidebug',
       request: 'launch',
       name: 'Robot Framework AI Debug',
       mode: getConfig().get('controlMode', 'fullControl'),
       stopOnEntry: true,
-      program: 'tests/checkout.robot'
+      program
     });
     if (!started) {
-      throw new Error('Failed to start embedded Robot Framework AI Debug session.');
+      throw new Error('Failed to start embedded Robot Framework AI Debug session. Check the output channel for adapter details.');
     }
   });
 

@@ -107,7 +107,7 @@ class SessionData:
         default_factory=lambda: StackFrame(
             id=1,
             name="Verify totals",
-            source="tests/checkout.robot",
+            source="demo.robot",
             line=28,
             column=1,
         )
@@ -117,7 +117,7 @@ class SessionData:
             type="keyword",
             id="kw-28",
             name="Verify totals",
-            source="tests/checkout.robot",
+            source="demo.robot",
             lineno=28,
         )
     )

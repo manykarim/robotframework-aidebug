@@ -39,4 +39,4 @@ def test_server_can_be_used_without_toolbox() -> None:
     session.add_demo_data()
     server = DebugServer(session)
     state = server.dispatch("robot/getExecutionState", {"includeStack": True})
-    assert state["topFrame"]["source"] == "tests/checkout.robot"
+    assert state["topFrame"]["source"] == "demo.robot"

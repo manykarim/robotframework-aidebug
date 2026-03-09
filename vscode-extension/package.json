@@ -37,7 +37,7 @@
     "onCommand:robotframeworkAidebug.showContext",
     "onCommand:robotframeworkAidebug.resetDemoSession",
     "onCommand:robotframeworkAidebug.runRecoveryJourney",
-    "onDebug:robotframework-aidebug"
+    "onDebugResolve:robotframework-aidebug"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -100,7 +100,7 @@
               },
               "program": {
                 "type": "string",
-                "default": "tests/checkout.robot"
+                "default": "${file}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -123,7 +123,7 @@
             "type": "robotframework-aidebug",
             "request": "launch",
             "name": "Robot Framework AI Debug",
-            "program": "${workspaceFolder}/tests/checkout.robot",
+            "program": "${file}",
             "stopOnEntry": true,
             "mode": "fullControl"
           }
@@ -198,6 +198,7 @@
     "extension.js",
     "backendClient.js",
     "debugAdapterFactory.js",
+    "debugLaunchConfig.js",
     "journeys.js",
     "runtimeStateCache.js",
     "sessionRouter.js",

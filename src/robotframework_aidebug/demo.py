@@ -12,7 +12,7 @@ def build_demo_toolbox(
 ) -> AgentToolbox:
     session = AgentDebugSession(
         title="checkout-demo",
-        source="tests/checkout.robot",
+        source="demo.robot",
         policy=policy or PolicyConfig(mode=mode),
     )
     session.add_demo_data()

@@ -22,7 +22,7 @@ class FakeSession {
       return { threads: [{ id: 1, name: 'RobotMain' }] };
     }
     if (command === 'stackTrace') {
-      return { stackFrames: [{ id: 7, name: 'Verify totals', source: { path: 'tests/checkout.robot' }, line: 28, column: 1 }] };
+      return { stackFrames: [{ id: 7, name: 'Verify totals', source: { path: 'demo.robot' }, line: 28, column: 1 }] };
     }
     if (command === 'scopes') {
       return { scopes: [{ name: 'Local', variablesReference: 10 }] };

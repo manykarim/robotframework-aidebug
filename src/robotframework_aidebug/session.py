@@ -35,7 +35,7 @@ class AgentDebugSession:
         if not self.data.stack_frames:
             self.data.stack_frames = [
                 self.data.top_frame,
-                StackFrame(id=2, name="Validate checkout", source="tests/checkout.robot", line=12, column=1),
+                StackFrame(id=2, name="Validate checkout", source="demo.robot", line=12, column=1),
             ]
         self.keywords = KeywordRegistry()
         self._references: dict[int, ReferenceTarget] = {}

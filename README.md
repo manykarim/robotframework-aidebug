@@ -106,7 +106,7 @@ code --install-extension dist/robotframework-aidebug-vscode-0.1.0.vsix --force
   "type": "robotframework-aidebug",
   "request": "launch",
   "name": "Robot Framework AI Debug",
-  "program": "${workspaceFolder}/tests/checkout.robot",
+  "program": "${workspaceFolder}/demo.robot",
   "stopOnEntry": true,
   "mode": "fullControl"
 }

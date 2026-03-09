@@ -36,7 +36,7 @@ def test_dap_server_handles_initialize_and_launch() -> None:
                 "seq": 2,
                 "type": "request",
                 "command": "launch",
-                "arguments": {"program": "tests/checkout.robot", "mode": "fullControl", "stopOnEntry": True},
+                "arguments": {"program": "demo.robot", "mode": "fullControl", "stopOnEntry": True},
             }
         )
     )

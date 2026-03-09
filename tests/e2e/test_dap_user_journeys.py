@@ -67,7 +67,7 @@ def start_client() -> DapClient:
     client = DapClient(process)
     init = client.request("initialize")
     assert init["success"] is True
-    launch = client.request("launch", {"program": "tests/checkout.robot", "mode": "fullControl", "stopOnEntry": True})
+    launch = client.request("launch", {"program": "demo.robot", "mode": "fullControl", "stopOnEntry": True})
     assert launch["success"] is True
     return client
 
