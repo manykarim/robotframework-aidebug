@@ -1,95 +1,110 @@
 # Use Cases
 
-## UC-01: Inspect Current Failure State
+## UC-01: Explain Why Execution Is Paused
 
 ### Trigger
 
-The agent is asked why the current Robot test failed or where execution is paused.
+The user asks the agent what is happening in the active Robot Framework debug session.
 
-### Primary Flow
+### Main Flow
 
-1. Resolve the active RobotCode debug session.
-2. Validate feature enablement and workspace trust.
-3. Invoke `robot/getExecutionState`.
-4. Optionally request `stackTrace`, `scopes`, or `robot/getVariablesSnapshot`.
-5. Return a compact summary to the agent.
+1. Resolve the active `AgentDebugSession`.
+2. Probe capabilities if needed.
+3. Read the execution snapshot.
+4. Read the top stack frame and bounded recent output if not already cached.
+5. Return a concise explanation with source location, stop reason, and next allowed actions.
 
-### Success Result
+### Success Outcome
 
-The agent receives a bounded snapshot of state without mutating execution.
+The user receives an accurate explanation without mutating runtime state.
 
-## UC-02: Inspect Variables Safely
+## UC-02: Inspect Runtime Variables Safely
 
 ### Trigger
 
-The agent needs current variable values to diagnose a failure.
+The user asks for the current values of one or more variables.
 
-### Primary Flow
+### Main Flow
 
 1. Resolve frame and scope.
-2. Prefer `robot/getVariablesSnapshot` for compact inspection.
-3. Fall back to standard `variables` traversal for deep trees.
-4. Apply redaction and truncation before tool output.
+2. Prefer a bounded snapshot over deep tree traversal.
+3. Apply policy-based redaction and truncation.
+4. Return a value summary and note truncation if applicable.
 
-### Business Rule
+### Failure Cases
 
-Secrets are summarized or redacted unless the user explicitly allows broader disclosure in policy.
+- no paused session
+- scope unavailable for frame
+- payload exceeds configured budget
+- policy denial for sensitive material
 
-## UC-03: Set A Variable During A Paused Session
+## UC-03: Execute A Diagnostic Keyword During A Pause
 
 ### Trigger
 
-The agent proposes a one-off mutation to test a hypothesis.
+The user asks the agent to run a Robot keyword while debugging.
 
-### Primary Flow
+### Main Flow
 
-1. Confirm `mode = fullControl`.
+1. Require `fullControl` mode.
 2. Confirm the session is paused.
-3. Resolve scope or variable reference.
-4. Send `setVariable` or a future higher-level scoped mutation request.
-5. Log the action.
-6. Return the post-mutation value summary.
+3. Normalize the request into `KeywordInvocation`.
+4. Dispatch through transport-specific execution.
+5. Capture result, bounded logs, and post-execution state.
+6. Emit an audit entry.
 
-### Failure Modes
+### Rule
 
-- no active session,
-- running instead of paused,
-- variable not found,
-- scope mismatch,
-- policy rejection.
+Execution must never begin from free-form prompt text without normalization and policy evaluation.
 
-## UC-04: Execute A Diagnostic Keyword
+## UC-04: Execute A Multi-Line Recovery Snippet
 
 ### Trigger
 
-The agent wants to call a known Robot keyword such as `Log Variables` or a domain-specific diagnostic helper.
+The user asks the agent to run a small Robot body fragment such as an `IF` block or sequence of keywords.
 
-### Primary Flow
+### Main Flow
 
-1. Confirm `mode = fullControl` and paused state.
-2. Build a `KeywordInvocation` value object.
-3. Send `robot/executeKeyword`.
-4. Capture status, return value, and bounded logs.
-5. Emit an audit entry.
-
-### Invariant
-
-Execution happens through a structured request, not arbitrary free-form `evaluate` text.
-
-## UC-05: Execute A Multi-Line Snippet
-
-### Trigger
-
-The agent needs a small test-body sequence such as an `IF`, `FOR`, or several keyword calls.
-
-### Primary Flow
-
-1. Confirm `mode = fullControl` and paused state.
-2. Wrap the body text in a `SnippetEnvelope`.
-3. Parse with Robot Framework APIs.
-4. Execute in the current debug context.
-5. Return a structured success or error response.
+1. Require `fullControl` mode.
+2. Wrap the snippet in a `SnippetEnvelope`.
+3. Validate the snippet parses cleanly.
+4. Dispatch it into the paused runtime context.
+5. Return structured success, failure, or parse diagnostics.
 
 ### Verified Constraint
 
-The snippet envelope is mandatory because body fragments alone do not parse into executable Robot body nodes in Robot Framework 7.4.2.
+The snippet envelope is mandatory because raw body fragments parse into implicit comments instead of executable bodies.
+
+## UC-05: Switch From Bridge To Embedded Mode
+
+### Trigger
+
+Bridge mode is unavailable, degraded, or unsupported for the required feature set.
+
+### Main Flow
+
+1. Detect the reason bridge mode is unsuitable.
+2. Surface a precise capability explanation.
+3. Offer or select embedded mode if installed and configured.
+4. Re-run capability probing.
+5. Continue using the same tool contracts.
+
+### Success Outcome
+
+The user sees continuity of behavior despite a transport change.
+
+## UC-06: Provide Namespace-Aware Suggestions
+
+### Trigger
+
+The user asks what keyword, variable, or symbol is relevant at the current location.
+
+### Main Flow
+
+1. Use runtime completions when a paused live session exists.
+2. Use static namespace intelligence when no paused runtime is available.
+3. Clearly label whether the answer came from runtime or source analysis.
+
+### Design Rule
+
+Do not conflate runtime truth with static analysis. Both are useful, but they are not equivalent.

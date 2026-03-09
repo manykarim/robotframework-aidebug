@@ -8,19 +8,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  backend:
-    name: Backend Tests
+  python:
+    name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.13']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v5
       - name: Sync dependencies
-        run: uv sync
-      - name: Run backend tests
-        run: uv run pytest --cov=robotframework_aidebug --cov-report=term-missing
+        run: uv sync --group dev
+      - name: Run Python test suite with coverage
+        run: uv run --no-sync pytest --cov=robotframework_aidebug --cov-report=term-missing
+      - name: Run benchmark baseline
+        run: uv run --no-sync python -m robotframework_aidebug.benchmark
+      - name: Run CLI demo smoke test
+        run: uv run --no-sync python -m robotframework_aidebug demo
 
   vscode-extension:
     name: VS Code Extension
@@ -38,7 +46,7 @@ jobs:
           cache-dependency-path: vscode-extension/package-lock.json
       - name: Install backend
         run: |
-          uv sync
+          uv sync --group dev
           uv pip install .
       - name: Install extension dependencies
         working-directory: vscode-extension

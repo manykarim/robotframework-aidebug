@@ -13,6 +13,7 @@ from robot.variables.evaluation import evaluate_expression
 from .keywords import KeywordRegistry
 from .models import (
     AuditEntry,
+    CapabilitySet,
     EventRecord,
     ExecutionItem,
     PolicyConfig,
@@ -73,7 +74,14 @@ class AgentDebugSession:
         self.record_event("robotStarted", {"type": "test", "name": "Validate checkout"})
         self.record_event("robotLog", {"message": "Breakpoint reached at Verify totals"})
 
-    def audit(self, command: str, arguments: dict[str, Any], result: str, started_at: float) -> None:
+    def audit(
+        self,
+        command: str,
+        arguments: dict[str, Any],
+        result: str,
+        started_at: float,
+        correlation_id: str | None = None,
+    ) -> None:
         sanitized = self._sanitize(arguments)
         self.data.audit_log.append(
             AuditEntry(
@@ -82,6 +90,7 @@ class AgentDebugSession:
                 sanitized_arguments=sanitized,
                 result=result,
                 duration_ms=(time.time() - started_at) * 1000.0,
+                correlation_id=correlation_id,
             )
         )
 
@@ -192,12 +201,44 @@ class AgentDebugSession:
             response["scopes"] = self.scopes(self.data.stack_frames[0].id)
         return response
 
+    def probe_capabilities(self) -> dict[str, Any]:
+        self.policy.ensure_read()
+        capabilities = CapabilitySet(
+            can_set_variables=self.policy.config.mode.value == "fullControl",
+            can_execute_keyword=self.policy.config.mode.value == "fullControl",
+            can_execute_snippet=self.policy.config.mode.value == "fullControl",
+        )
+        return {
+            "sessionTitle": self.title,
+            "source": self.source,
+            "state": self.data.state.value,
+            "mode": self.policy.config.mode.value,
+            "workspaceTrusted": self.policy.config.workspace_trusted,
+            "enabled": self.policy.config.enabled,
+            "capabilities": {
+                "canReadState": capabilities.can_read_state,
+                "canReadVariables": capabilities.can_read_variables,
+                "canSetVariables": capabilities.can_set_variables,
+                "canEvaluate": capabilities.can_evaluate,
+                "canExecuteKeyword": capabilities.can_execute_keyword,
+                "canExecuteSnippet": capabilities.can_execute_snippet,
+                "canControlExecution": capabilities.can_control_execution,
+                "canCompleteRuntime": capabilities.can_complete_runtime,
+                "supportsStructuredRequests": capabilities.supports_structured_requests,
+                "requiresRobotSyncAck": capabilities.requires_robot_sync_ack,
+            },
+        }
+
     def stack_trace(self, threadId: int | None = None) -> dict[str, Any]:
         self.policy.ensure_read()
         return {
             "stackFrames": [asdict(frame) for frame in self.data.stack_frames],
             "totalFrames": len(self.data.stack_frames),
         }
+
+    def threads(self) -> dict[str, Any]:
+        self.policy.ensure_read()
+        return {"threads": [{"id": self.data.thread_id, "name": "RobotMain"}]}
 
     def scopes(self, frameId: int) -> list[dict[str, Any]]:
         self.policy.ensure_read()
@@ -248,15 +289,18 @@ class AgentDebugSession:
         frameId: int | None = None,
         scopes: Iterable[str] = ("local", "test", "suite", "global"),
         max_items: int | None = None,
+        maxItems: int | None = None,
         redactPatterns: tuple[str, ...] | None = None,
+        redact_patterns: tuple[str, ...] | None = None,
     ) -> dict[str, Any]:
         self.policy.ensure_read()
-        limit = max_items or self.policy.config.max_items
+        limit = maxItems or max_items or self.policy.config.max_items
         snapshot: dict[str, dict[str, str]] = {}
         truncated = False
         custom_redactor = self.policy.redactor
-        if redactPatterns is not None:
-            custom_redactor = type(self.policy.redactor)(tuple(redactPatterns), self.policy.config.max_value_chars)
+        patterns = redactPatterns if redactPatterns is not None else redact_patterns
+        if patterns is not None:
+            custom_redactor = type(self.policy.redactor)(tuple(patterns), self.policy.config.max_value_chars)
         for scope in scopes:
             rendered: dict[str, str] = {}
             for index, (name, value) in enumerate(self._mapping_for_scope(scope).items()):
@@ -275,6 +319,40 @@ class AgentDebugSession:
         else:
             result = variables.replace_string(expression)
         return {"result": self.policy.redactor.summarize("result", result), "rawResult": result}
+
+    def runtime_completions(self, text: str = "", frameId: int | None = None, column: int | None = None) -> dict[str, Any]:
+        self.policy.ensure_read()
+        normalized = text.strip().lower()
+        variable_items = []
+        for _, mapping in self._scope_mappings():
+            for name in mapping:
+                display = self._display_name(name)
+                if not normalized or normalized in display.lower():
+                    variable_items.append({"label": display, "type": "variable", "text": display})
+        keyword_items = []
+        for keyword in self.keywords.available_keywords():
+            if not normalized or normalized in keyword.lower():
+                keyword_items.append({"label": keyword, "type": "function", "text": keyword})
+        items = variable_items + keyword_items
+        items.sort(key=lambda item: (item["type"], item["label"]))
+        return {"targets": items[:50]}
+
+    def get_audit_log(self, limit: int = 20) -> dict[str, Any]:
+        self.policy.ensure_read()
+        entries = self.data.audit_log[-limit:]
+        return {
+            "entries": [
+                {
+                    "timestamp": entry.timestamp,
+                    "command": entry.command,
+                    "sanitizedArguments": entry.sanitized_arguments,
+                    "result": entry.result,
+                    "durationMs": entry.duration_ms,
+                    "correlationId": entry.correlation_id,
+                }
+                for entry in entries
+            ]
+        }
 
     def set_variable(self, variablesReference: int, name: str, value: str) -> dict[str, Any]:
         self.policy.ensure_write()

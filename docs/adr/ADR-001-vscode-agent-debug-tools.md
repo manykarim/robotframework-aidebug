@@ -1,57 +1,53 @@
-# ADR-001: Host Agent Debug Control In The VS Code Extension
+# ADR-001: Adopt Dual-Mode Integration With Bridge First
 
 - Status: Accepted
 - Date: 2026-03-08
 
 ## Context
 
-The research shows that RobotCode already has a functioning DAP path:
+`robotframework-aidebug` must support live Robot Framework debugging in VS Code while remaining a separate product.
 
-- VS Code debug UI and extension
-- RobotCode debug launcher
-- RobotCode debug server embedded with Robot Framework execution
+The available architectural options are:
 
-The missing capability is not basic debugging. The missing capability is a deterministic, tool-friendly control surface that an AI agent can use without bypassing the editor's debug session.
+1. `Bridge Mode`
+   A standalone extension talks to an active RobotCode debug session through stable VS Code debug APIs and DAP requests.
+2. `Embedded Mode`
+   The product contributes its own debug type and launches its own adapter, while reusing RobotCode Python packages where practical.
+3. `Greenfield Adapter`
+   The product implements a new Robot Framework debug adapter from scratch.
 
-The main options were:
-
-1. drive the existing debug console `evaluate` channel directly,
-2. expose a separate HTTP or MCP server as the primary interface,
-3. add agent tools inside the VS Code extension and keep DAP as the protocol boundary.
+The prior analysis of RobotCode shows that live debugging, paused-context evaluation, variable inspection, stepping, `setVariable`, runtime completions, and custom-event synchronization already exist there. The official VS Code debugger model confirms that a custom debug adapter is feasible, but does not make a greenfield adapter strategically sound.
 
 ## Decision
 
-The system will host Agent Debug Control inside the VS Code extension.
+Adopt a dual-mode architecture.
 
-The extension will expose debug tools through `vscode.lm.registerTool` and route those tools to the active RobotCode debug session through `debugSession.customRequest(...)`.
-
-DAP remains the canonical cross-process boundary.
+1. Deliver `Bridge Mode` first.
+2. Design `Embedded Mode` as a planned second mode.
+3. Reject a greenfield adapter as the primary implementation strategy.
 
 ## Rationale
 
-1. The active debug session in VS Code is the ground truth for what is paused, resumed, attached, or detached.
-2. The extension already understands RobotCode session lifecycle and custom debug events.
-3. Keeping AI integration in the editor avoids coupling the Robot Framework runtime directly to AI concerns.
-4. Tool invocations can be restricted with enablement conditions, workspace trust, and explicit user-facing invocation text.
-5. This path is additive. Existing non-agent debugging remains unchanged.
+1. `Bridge Mode` is the fastest credible path to live debug value.
+2. `Embedded Mode` preserves long-term independence from RobotCode's VS Code extension packaging.
+3. A greenfield adapter would duplicate the hardest parts of the runtime model, increase maintenance cost, and delay delivery without creating differentiating value.
 
 ## Consequences
 
 ### Positive
 
-- Reuses existing RobotCode architecture.
-- Preserves a single authority for session routing.
-- Allows deterministic tool schemas instead of free-form chat behavior.
-- Makes feature gating and audit logging straightforward in the extension.
+- The product can become useful quickly.
+- The domain model stays valid across both modes.
+- Independence remains possible without discarding upstream debugger maturity.
 
 ### Negative
 
-- The primary experience depends on VS Code tool support.
-- Non-VS Code agents will need a secondary bridge.
-- The extension must own caching, summarization, and failure handling for tool calls.
+- Two operating modes increase testing scope.
+- The bridge must tolerate RobotCode version drift.
+- The embedded path will require compatibility management against upstream Python packages.
 
-## Non-Goals
+## Implications For Design
 
-- Direct agent access to Robot Framework internals.
-- Replacing the existing DAP or debug launcher architecture.
-- Designing the optional HTTP or MCP bridge as the first delivery target.
+1. The extension must own a `Session Router` abstraction instead of binding directly to one transport.
+2. Tool contracts must be transport-neutral.
+3. Security, policy, audit, and truncation rules must behave the same in both modes.

@@ -12,6 +12,8 @@ wheels/
 *.egg-info
 node_modules/
 vscode-extension/node_modules/
+vscode-extension/.npm-cache/
+vscode-extension/*.tgz
 *.log
 
 # Virtual environments

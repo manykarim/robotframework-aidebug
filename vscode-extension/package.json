@@ -29,10 +29,15 @@
   "activationEvents": [
     "onCommand:robotframeworkAidebug.startBackend",
     "onCommand:robotframeworkAidebug.stopBackend",
+    "onCommand:robotframeworkAidebug.startEmbeddedSession",
+    "onCommand:robotframeworkAidebug.showCapabilities",
     "onCommand:robotframeworkAidebug.showState",
     "onCommand:robotframeworkAidebug.showVariables",
+    "onCommand:robotframeworkAidebug.showAuditLog",
+    "onCommand:robotframeworkAidebug.showContext",
     "onCommand:robotframeworkAidebug.resetDemoSession",
-    "onCommand:robotframeworkAidebug.runRecoveryJourney"
+    "onCommand:robotframeworkAidebug.runRecoveryJourney",
+    "onDebug:robotframework-aidebug"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -46,12 +51,28 @@
         "title": "Robot Framework AI Debug: Stop Backend"
       },
       {
+        "command": "robotframeworkAidebug.startEmbeddedSession",
+        "title": "Robot Framework AI Debug: Start Embedded Session"
+      },
+      {
+        "command": "robotframeworkAidebug.showCapabilities",
+        "title": "Robot Framework AI Debug: Show Capabilities"
+      },
+      {
         "command": "robotframeworkAidebug.showState",
         "title": "Robot Framework AI Debug: Show State"
       },
       {
         "command": "robotframeworkAidebug.showVariables",
         "title": "Robot Framework AI Debug: Show Variables"
+      },
+      {
+        "command": "robotframeworkAidebug.showAuditLog",
+        "title": "Robot Framework AI Debug: Show Audit Log"
+      },
+      {
+        "command": "robotframeworkAidebug.showContext",
+        "title": "Robot Framework AI Debug: Show Context"
       },
       {
         "command": "robotframeworkAidebug.resetDemoSession",
@@ -62,13 +83,60 @@
         "title": "Robot Framework AI Debug: Run Recovery Journey"
       }
     ],
+    "debuggers": [
+      {
+        "type": "robotframework-aidebug",
+        "label": "Robot Framework AI Debug",
+        "languages": [
+          "robotframework"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [],
+            "properties": {
+              "name": {
+                "type": "string",
+                "default": "Robot Framework AI Debug"
+              },
+              "program": {
+                "type": "string",
+                "default": "tests/checkout.robot"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": true
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "readOnly",
+                  "fullControl"
+                ],
+                "default": "fullControl"
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "robotframework-aidebug",
+            "request": "launch",
+            "name": "Robot Framework AI Debug",
+            "program": "${workspaceFolder}/tests/checkout.robot",
+            "stopOnEntry": true,
+            "mode": "fullControl"
+          }
+        ]
+      }
+    ],
     "configuration": {
       "title": "Robot Framework AI Debug",
       "properties": {
         "robotframeworkAidebug.backendExecutable": {
           "type": "string",
           "default": "robotframework-aidebug-stdio",
-          "description": "Executable used to start the standalone backend. Override this for manual or virtualenv-based installations."
+          "description": "Executable used to start the standalone backend fallback transport."
         },
         "robotframeworkAidebug.backendArgs": {
           "type": "array",
@@ -78,19 +146,66 @@
           },
           "description": "Additional arguments passed to the backend executable."
         },
+        "robotframeworkAidebug.adapterExecutable": {
+          "type": "string",
+          "default": "robotframework-aidebug-dap",
+          "description": "Executable used to start the embedded debug adapter."
+        },
+        "robotframeworkAidebug.adapterArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional arguments passed to the embedded debug adapter executable."
+        },
         "robotframeworkAidebug.autoStartBackend": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically start the backend when a command needs it."
+          "description": "Automatically start the backend fallback when no supported debug session is active."
+        },
+        "robotframeworkAidebug.preferredTransport": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "debugSession",
+            "backend"
+          ],
+          "default": "auto",
+          "description": "How commands choose between an active debug session and the backend fallback."
+        },
+        "robotframeworkAidebug.controlMode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "readOnly",
+            "fullControl"
+          ],
+          "default": "fullControl",
+          "description": "Default control mode for embedded sessions."
         }
       }
     }
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "package:vsix": "mkdir -p dist && npx @vscode/vsce package --out dist/robotframework-aidebug-vscode-0.1.0.vsix"
+    "package:vsix": "mkdir -p dist && npx @vscode/vsce package --no-dependencies --out dist/robotframework-aidebug-vscode-0.1.0.vsix"
   },
   "devDependencies": {
     "@vscode/vsce": "^3.6.2"
-  }
+  },
+  "files": [
+    "extension.js",
+    "backendClient.js",
+    "debugAdapterFactory.js",
+    "journeys.js",
+    "runtimeStateCache.js",
+    "sessionRouter.js",
+    "shared.js",
+    "staticContext.js",
+    "transports.js",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ]
 }

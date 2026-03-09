@@ -1,71 +1,64 @@
 # robotframework-aidebug
 
-Standalone AI-debug tooling for Robot Framework.
+Standalone AI-assisted debugging for Robot Framework in VS Code.
 
-This repository is independent of RobotCode. It contains two separately installable packages:
+This repository now contains both:
 
-- Python backend package: [src/robotframework_aidebug](/home/many/workspace/robotframework-aidebug/src/robotframework_aidebug)
-- VS Code extension package: [vscode-extension](/home/many/workspace/robotframework-aidebug/vscode-extension)
+- a Python backend and embedded debug adapter in [src/robotframework_aidebug](/home/many/workspace/robotframework-aidebug/src/robotframework_aidebug)
+- a VS Code extension in [vscode-extension](/home/many/workspace/robotframework-aidebug/vscode-extension)
 
-The backend exposes a structured local command surface for:
+## Runtime Modes
 
-- execution state snapshots
-- stack, scopes, and variable traversal
-- variable mutation with policy gating
-- structured keyword execution
-- structured snippet execution
-- audit logging, redaction, and rate limiting
+### Bridge Mode
 
-The VS Code extension talks to the backend over a local stdio JSON protocol and can be installed manually from a `.vsix`, without relying on the Marketplace.
+If VS Code already has an active RobotCode debug session, the extension routes commands to that live session through the VS Code debug API.
 
-## Packages
+### Embedded Mode
 
-### Python backend
+The extension can start its own `robotframework-aidebug` debug session through the bundled DAP adapter executable:
 
-Package name: `robotframework-aidebug`
+- debug type: `robotframework-aidebug`
+- adapter executable: `robotframework-aidebug-dap`
 
-Console scripts:
+### Backend Fallback Mode
 
-- `robotframework-aidebug`
+If no supported debug session is active, the extension can fall back to the standalone backend protocol over stdio using:
+
 - `robotframework-aidebug-stdio`
 
-### VS Code extension
+## Features
 
-Package name: `robotframework-aidebug-vscode`
-
-Provides commands for:
-
-- starting and stopping the backend
-- showing current state
-- showing variables
-- resetting the demo session
-- running a full recovery journey
+- capability probing and transport-aware routing
+- execution state inspection
+- stack, scopes, variable traversal, and bounded variable snapshots
+- variable mutation with policy gating
+- paused-context keyword execution
+- paused-context multi-line snippet execution
+- runtime completions
+- audit log inspection
+- static context extraction from the active editor when no runtime context is available
+- standalone VSIX packaging without Marketplace dependency
 
 ## Installation
 
-### Backend with `uv`
+### Python with `uv`
 
 ```bash
 uv sync
 uv pip install .
 ```
 
-### Backend with `pip`
+### Python with `pip`
 
 ```bash
 pip install .
 ```
 
-### Verify backend installation
+Installed console scripts:
 
-```bash
-robotframework-aidebug demo
-robotframework-aidebug benchmark --iterations 20
-robotframework-aidebug-stdio <<'EOF2'
-{"id":1,"command":"health"}
-__EXIT__
-EOF2
-```
+- `robotframework-aidebug`
+- `robotframework-aidebug-stdio`
+- `robotframework-aidebug-dap`
 
 ### VS Code extension without Marketplace
 
@@ -73,86 +66,98 @@ EOF2
 cd vscode-extension
 npm install
 npm run package:vsix
-code --install-extension dist/robotframework-aidebug-vscode-0.1.0.vsix
+code --install-extension dist/robotframework-aidebug-vscode-0.1.0.vsix --force
 ```
 
-If the backend executable is not on `PATH`, configure the extension setting:
+## VS Code Settings
 
-- `robotframeworkAidebug.backendExecutable`
-
-Example value for this repository's local virtualenv:
-
-```text
-/home/many/workspace/robotframework-aidebug/.venv/bin/robotframework-aidebug-stdio
+```json
+{
+  "robotframeworkAidebug.backendExecutable": "/home/many/workspace/robotframework-aidebug/.venv/bin/robotframework-aidebug-stdio",
+  "robotframeworkAidebug.backendArgs": [],
+  "robotframeworkAidebug.adapterExecutable": "/home/many/workspace/robotframework-aidebug/.venv/bin/robotframework-aidebug-dap",
+  "robotframeworkAidebug.adapterArgs": [],
+  "robotframeworkAidebug.preferredTransport": "auto",
+  "robotframeworkAidebug.controlMode": "fullControl",
+  "robotframeworkAidebug.autoStartBackend": true
+}
 ```
 
 ## Usage
 
-### Backend demo
+### Bridge Mode With RobotCode
+
+1. Start a RobotCode debug session.
+2. Open the Command Palette.
+3. Run:
+   - `Robot Framework AI Debug: Show Capabilities`
+   - `Robot Framework AI Debug: Show State`
+   - `Robot Framework AI Debug: Show Variables`
+   - `Robot Framework AI Debug: Show Context`
+   - `Robot Framework AI Debug: Run Recovery Journey`
+
+### Embedded Mode
+
+1. Run `Robot Framework AI Debug: Start Embedded Session`.
+2. Or use this launch configuration:
+
+```json
+{
+  "type": "robotframework-aidebug",
+  "request": "launch",
+  "name": "Robot Framework AI Debug",
+  "program": "${workspaceFolder}/tests/checkout.robot",
+  "stopOnEntry": true,
+  "mode": "fullControl"
+}
+```
+
+3. Then use the same AI Debug commands against the active session.
+
+### Backend Fallback Mode
+
+1. Run `Robot Framework AI Debug: Start Backend`.
+2. Use the state, variables, context, capabilities, audit-log, and recovery-journey commands.
+3. `Robot Framework AI Debug: Reset Demo Session` is only available in this fallback mode.
+
+### CLI
 
 ```bash
 robotframework-aidebug demo
-```
-
-### Benchmarks
-
-```bash
 robotframework-aidebug benchmark --iterations 200
+robotframework-aidebug stdio-server
+robotframework-aidebug dap-server
 ```
 
-### Long-running backend protocol
+## Validation
 
-```bash
-robotframework-aidebug-stdio
-```
+Current local validation results:
 
-Then send newline-delimited JSON requests such as:
+- Python tests: `30 passed`
+- Python coverage: `87%`
+- VS Code extension tests: `2 passed`
+- DAP end-to-end journey tests: included in the Python suite
+- VSIX packaging: verified
 
-```json
-{"id":1,"command":"health"}
-{"id":2,"command":"robot/getExecutionState","arguments":{"includeStack":true,"includeScopes":true}}
-{"id":3,"command":"robot/getVariablesSnapshot","arguments":{"scopes":["local","test","suite","global"],"max_items":20}}
-```
+Validation artifacts:
 
-### VS Code workflow
-
-1. Install the backend.
-2. Install the VSIX from `vscode-extension/dist`.
-3. Open VS Code.
-4. Run `Robot Framework AI Debug: Start Backend`.
-5. Run `Robot Framework AI Debug: Show State`.
-6. Run `Robot Framework AI Debug: Show Variables` or `Robot Framework AI Debug: Run Recovery Journey`.
+- [docs/implementation/validation.md](/home/many/workspace/robotframework-aidebug/docs/implementation/validation.md)
+- [docs/implementation/benchmark-results.md](/home/many/workspace/robotframework-aidebug/docs/implementation/benchmark-results.md)
+- [docs/index.md](/home/many/workspace/robotframework-aidebug/docs/index.md)
 
 ## Development
 
-### Python validation
+### Python
 
 ```bash
-uv run pytest --cov=robotframework_aidebug --cov-report=term-missing
-uv run python -m robotframework_aidebug.benchmark
+.venv/bin/python -m pytest --cov=robotframework_aidebug --cov-report=term-missing
+mkdir -p .uv-cache && UV_CACHE_DIR=$PWD/.uv-cache uv run --no-sync python -m robotframework_aidebug.benchmark
 ```
 
-### Extension validation
+### Extension
 
 ```bash
 cd vscode-extension
 npm test
 npm run package:vsix
-code --install-extension dist/robotframework-aidebug-vscode-0.1.0.vsix --force
 ```
-
-## Documentation
-
-- architecture index: [docs/index.md](/home/many/workspace/robotframework-aidebug/docs/index.md)
-- validation report: [docs/implementation/validation.md](/home/many/workspace/robotframework-aidebug/docs/implementation/validation.md)
-- benchmark report: [docs/implementation/benchmark-results.md](/home/many/workspace/robotframework-aidebug/docs/implementation/benchmark-results.md)
-- research basis: [docs/research.md](/home/many/workspace/robotframework-aidebug/docs/research.md)
-
-## Verification snapshot
-
-- Python: `3.13.11`
-- `uv`: `0.9.26`
-- Robot Framework: `7.4.2`
-- Python tests: `24 passed`
-- Extension tests: `2 passed`
-- VSIX artifact: [robotframework-aidebug-vscode-0.1.0.vsix](/home/many/workspace/robotframework-aidebug/vscode-extension/dist/robotframework-aidebug-vscode-0.1.0.vsix)

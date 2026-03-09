@@ -1,4 +1,5 @@
 from .demo import build_demo_toolbox
+from .dap_server import DapApplication, DapServer
 from .models import AgentMode, PolicyConfig, SessionState
 from .policy import AgentDebugError
 from .server import DebugServer
@@ -10,6 +11,8 @@ __all__ = [
     "AgentDebugSession",
     "AgentMode",
     "AgentToolbox",
+    "DapApplication",
+    "DapServer",
     "DebugServer",
     "PolicyConfig",
     "SessionRouter",

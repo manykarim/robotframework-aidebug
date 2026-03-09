@@ -27,6 +27,9 @@ class AgentToolbox:
     def get_stack(self) -> dict[str, Any]:
         return self.router.active_server().dispatch("stackTrace", {"threadId": 1})
 
+    def get_threads(self) -> dict[str, Any]:
+        return self.router.active_server().dispatch("threads", {})
+
     def get_scopes(self, frame_id: int) -> dict[str, Any]:
         return self.router.active_server().dispatch("scopes", {"frameId": frame_id})
 
@@ -37,8 +40,17 @@ class AgentToolbox:
     def get_variables_snapshot(self, **arguments: Any) -> dict[str, Any]:
         return self.router.active_server().dispatch("robot/getVariablesSnapshot", arguments)
 
+    def probe_capabilities(self) -> dict[str, Any]:
+        return self.router.active_server().dispatch("robot/probeCapabilities", {})
+
+    def get_audit_log(self, limit: int = 20) -> dict[str, Any]:
+        return self.router.active_server().dispatch("robot/getAuditLog", {"limit": limit})
+
     def evaluate(self, expression: str) -> dict[str, Any]:
         return self.router.active_server().dispatch("evaluate", {"expression": expression})
+
+    def get_runtime_completions(self, text: str = "") -> dict[str, Any]:
+        return self.router.active_server().dispatch("completions", {"text": text})
 
     def set_variable(self, variables_reference: int, name: str, value: str) -> dict[str, Any]:
         return self.router.active_server().dispatch(

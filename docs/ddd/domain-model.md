@@ -2,53 +2,70 @@
 
 ## Aggregate: AgentDebugSession
 
-Represents the AI-facing control plane for one active RobotCode debug session.
+Represents the AI-facing control plane for one selected live debug session.
 
 ### Identity
 
 - `sessionId`
-- `debugSessionType`
+- `sessionType`
 - `workspaceFolder`
+- `transportMode`: `bridge | embedded`
 
 ### State
 
-- `lifecycleState`: `inactive | running | paused | stopped`
-- `mode`: `off | readOnly | fullControl`
+- `lifecycleState`: `inactive | starting | running | paused | stopped | degraded`
+- `controlMode`: `off | readOnly | fullControl`
+- `capabilities`
 - `policySnapshot`
-- `topFrame`
+- `selectedFrameId`
 - `recentEvents`
-- `rateLimitWindow`
+- `lastHealthCheckAt`
 
 ### Invariants
 
-1. Only one active `AgentDebugSession` is selected per tool invocation.
-2. Write commands are rejected unless `mode = fullControl`.
-3. Execute commands are rejected unless the underlying debug session is paused.
-4. Responses returned to the tool surface are already redacted.
+1. Exactly one session is selected per tool invocation.
+2. Mutating and execution operations are rejected unless `controlMode = fullControl`.
+3. Runtime execution is rejected unless the selected session is paused and healthy.
+4. All tool-facing payloads are bounded and redacted before leaving the aggregate boundary.
+
+## Entity: CapabilitySet
+
+Describes what the selected live session can actually do.
+
+### Fields
+
+- `canReadState`
+- `canReadVariables`
+- `canSetVariables`
+- `canEvaluate`
+- `canExecuteKeyword`
+- `canExecuteSnippet`
+- `canProvideRuntimeCompletions`
+- `requiresRobotSyncAck`
+- `supportsStructuredRequests`
+
+### Rule
+
+Capabilities are inferred by transport type, version checks, and explicit probing. Unsupported features must fail explicitly, never silently degrade into unsafe alternatives.
 
 ## Entity: ExecutionSnapshot
 
-A bounded projection returned by `robot/getExecutionState`.
+Bounded runtime projection.
 
 ### Fields
 
 - `runtimeState`
-- `threadId`
 - `stopReason`
-- `currentItem`
+- `threadId`
 - `topFrame`
-- `recentEvents`
+- `currentItem`
+- `recentOutput`
 - `capturedAt`
-
-### Rules
-
-- must be small enough for prompt-safe transport,
-- must be derivable without mutating runtime state,
-- must degrade gracefully if some data is unavailable.
+- `source`: `cache | live`
 
 ## Entity: VariableSnapshot
 
-A projection of variables in one or more scopes.
+Bounded view of visible variables.
 
 ### Fields
 
@@ -57,16 +74,11 @@ A projection of variables in one or more scopes.
 - `items`
 - `truncated`
 - `redactionsApplied`
+- `captureDurationMs`
 
-### Rules
+## Entity: RuntimeCommand
 
-- respects requested scope filters,
-- enforces server-side size limits,
-- never bypasses redaction policy.
-
-## Entity: ExecutionCommand
-
-Structured intent sent across the application boundary.
+Transport-neutral description of requested runtime work.
 
 ### Variants
 
@@ -78,60 +90,58 @@ Structured intent sent across the application boundary.
 - `SetVariable`
 - `ExecuteKeyword`
 - `ExecuteSnippet`
-- `ControlExecution`
-
-### Rules
-
-- every command carries a resolved `sessionId`,
-- write and execute commands include a policy evaluation result,
-- commands are idempotent only for reads, never assumed for writes.
+- `ContinueExecution`
+- `PauseExecution`
+- `StepOver`
+- `StepIn`
+- `StepOut`
+- `GetRuntimeCompletions`
 
 ## Value Object: KeywordInvocation
 
 - `keyword`
-- `args[]`
-- `assign[]`
+- `args`
+- `assign`
 - `frameId`
 - `timeoutSec`
 - `captureLog`
 
-Invariant: the keyword name must be explicit and argument ordering must be preserved.
+Invariant: argument order is preserved exactly and assignment targets are explicit.
 
 ## Value Object: SnippetEnvelope
 
-Represents a multi-line Robot body fragment wrapped into a synthetic test case for parsing.
-
-### Why It Exists
-
-The experiment set showed that `get_model()` treats raw body fragments as an implicit comment section instead of executable body content. Snippets therefore require a wrapper before they can become a `TestSuite` model.
+Represents a Robot body fragment wrapped into a synthetic test case.
 
 ### Fields
 
 - `suiteName`
 - `testName`
-- `indentedBody`
 - `originalSnippet`
+- `wrappedSource`
 
-## Value Object: AgentActionPolicy
+### Verified Rule
 
-- `workspaceTrusted`
-- `featureEnabled`
+Raw snippets do not become executable body nodes without the wrapper. This was re-confirmed with `uv run` on 2026-03-08.
+
+## Value Object: PolicyDecision
+
+- `allowed`
 - `mode`
-- `redactPatterns[]`
-- `maxValueChars`
-- `maxItems`
-- `maxExecutionsPerMinute`
-
-Invariant: `mode = off` rejects every command except explanatory status reads.
+- `reasonCode`
+- `redactionRules`
+- `rateLimitWindow`
+- `timeoutBudgetMs`
 
 ## Entity: AuditEntry
 
+- `correlationId`
 - `timestamp`
 - `sessionId`
+- `transportMode`
 - `toolName`
 - `commandType`
 - `sanitizedArguments`
-- `result`
+- `outcome`
 - `durationMs`
 
-Rule: audit entries never store raw secrets even if the original command carried them.
+Rule: audit records never retain raw secrets or unbounded console output.

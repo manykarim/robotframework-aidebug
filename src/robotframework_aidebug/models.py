@@ -18,6 +18,12 @@ class AgentMode(StrEnum):
     FULL_CONTROL = "fullControl"
 
 
+class TransportMode(StrEnum):
+    DIRECT = "direct"
+    BRIDGE = "bridge"
+    EMBEDDED = "embedded"
+
+
 @dataclass(frozen=True)
 class SourceLocation:
     source: str
@@ -57,6 +63,21 @@ class AuditEntry:
     sanitized_arguments: dict[str, Any]
     result: str
     duration_ms: float
+    correlation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class CapabilitySet:
+    can_read_state: bool = True
+    can_read_variables: bool = True
+    can_set_variables: bool = True
+    can_evaluate: bool = True
+    can_execute_keyword: bool = True
+    can_execute_snippet: bool = True
+    can_control_execution: bool = True
+    can_complete_runtime: bool = True
+    supports_structured_requests: bool = True
+    requires_robot_sync_ack: bool = False
 
 
 @dataclass

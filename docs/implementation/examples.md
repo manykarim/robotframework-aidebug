@@ -1,164 +1,99 @@
-# Worked Examples
+# Examples And User Journeys
 
-## Example 1: Read Current State
+## Example 1: Read-Only Bridge Session Diagnosis
 
-### Tool Invocation
+### Preconditions
 
-Tool name: `robot-debug-get_state`
+- VS Code has an active paused `robotcode` debug session.
+- `robotframework-aidebug` is enabled in `readOnly` mode.
 
-Example summary returned to the agent:
+### Tool Flow
 
-```text
-Session is paused at tests/checkout.robot:28 in keyword "Verify totals".
-Stop reason: breakpoint.
-Active test: Validate checkout.
-Recent Robot events: 3.
-```
+1. `ResolveSession`
+2. `ProbeCapabilities`
+3. `GetExecutionState`
+4. `GetVariablesSnapshot` for local scope
 
-### Underlying Request
+### Expected Result
 
-```json
-{
-  "command": "robot/getExecutionState",
-  "arguments": {
-    "includeStack": true,
-    "maxLogLines": 10
-  }
-}
-```
+The user gets a concise explanation of the current frame, stop reason, relevant variables, and suggested next diagnostic actions.
 
-## Example 2: Get A Safe Variable Snapshot
+## Example 2: Full-Control Keyword Execution
 
-### Tool Invocation
+### Preconditions
 
-Tool name: `robot-debug-get_variables`
+- session is paused
+- `fullControl` mode is enabled
+- runtime execution capability is supported
 
-Request example:
+### Normalized Command
 
 ```json
 {
-  "frameId": 41,
-  "scopes": ["local", "test"],
-  "maxItems": 10,
-  "redactPatterns": ["PASSWORD", "TOKEN"]
-}
-```
-
-Response example:
-
-```json
-{
-  "variables": {
-    "local": {
-      "${status}": "FAILED",
-      "${username}": "alice",
-      "${api_token}": "<redacted>"
-    },
-    "test": {
-      "${order_id}": "A-1042"
-    }
-  },
-  "truncated": false
-}
-```
-
-## Example 3: Execute A Diagnostic Keyword
-
-### Tool Invocation
-
-Tool name: `robot-debug-execute_keyword`
-
-Request example:
-
-```json
-{
+  "type": "ExecuteKeyword",
   "keyword": "Log Variables",
   "args": [],
   "assign": [],
-  "frameId": 41,
   "timeoutSec": 5,
   "captureLog": true
 }
 ```
 
-Response example:
+### Expected Result
 
-```json
-{
-  "status": "PASS",
-  "returnValueRepr": "None",
-  "assigned": {},
-  "logRef": 12
-}
-```
+The user receives PASS or FAIL, bounded logs, and the updated runtime context summary.
 
-## Example 4: Execute A Multi-Line Snippet
+## Example 3: Multi-Line Snippet Execution
 
-### Why Wrapping Is Required
+### User Intent
 
-The experiment set showed that this body alone:
+Run a conditional recovery snippet while paused.
+
+### Original Snippet
 
 ```robotframework
-IF    True
-    Log    inside
+IF    $status == 'FAILED'
+    Log    Investigating failure
 END
 ```
 
-is not parsed as executable body content by `get_model()` when supplied alone.
-
-The implementation therefore has to synthesize an envelope like this before parsing:
+### Wrapped Envelope
 
 ```robotframework
 *** Test Cases ***
-Agent Probe
-    IF    True
-        Log    inside
+AgentSnippet
+    IF    $status == 'FAILED'
+        Log    Investigating failure
     END
 ```
 
-### Request Example
+### Why The Wrapper Exists
 
-```json
-{
-  "snippet": "IF    $status == 'FAILED'\n    Log    Investigating\nEND",
-  "frameId": 41,
-  "timeoutSec": 5
-}
-```
+A fresh `uv run` experiment on 2026-03-08 confirmed that the raw body parses into `ImplicitCommentSection`, while the wrapped version produces `TestCaseSection` and a runnable test body.
 
-### Response Example
+## Example 4: Static Namespace Fallback
 
-```json
-{
-  "status": "OK",
-  "resultRepr": "None"
-}
-```
+### Preconditions
 
-## Example 5: Policy Rejection
+- no paused live session exists
+- source files are open in the workspace
 
-Response example when the session is running:
+### Behavior
 
-```json
-{
-  "status": "ERROR",
-  "error": "Snippet execution is only allowed while the debug session is paused."
-}
-```
+The agent answers from static Robot source analysis and explicitly labels the answer as editor-derived instead of runtime-derived.
 
-## Example 6: Audit Entry
+## Example 5: Full E2E User Journey To Validate
 
-```json
-{
-  "timestamp": "2026-03-08T10:42:15Z",
-  "sessionId": "robotcode:checkout",
-  "toolName": "robot-debug-execute_keyword",
-  "commandType": "ExecuteKeyword",
-  "sanitizedArguments": {
-    "keyword": "Log Variables",
-    "args": []
-  },
-  "result": "PASS",
-  "durationMs": 84
-}
-```
+1. open a sample Robot project
+2. start debugging
+3. hit a breakpoint in a failing test
+4. inspect current state
+5. inspect scoped variables
+6. run a diagnostic keyword
+7. change a variable
+8. execute a short recovery snippet
+9. step over
+10. resume execution
+11. confirm test result and audit trail
+
+This journey should exist as an automated end-to-end test in both supported modes where feasible.

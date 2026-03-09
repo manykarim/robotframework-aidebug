@@ -2,63 +2,63 @@
 
 ```mermaid
 flowchart LR
-  subgraph AI[Agent Runtime]
-    AGENT[LLM / Agent Mode]
+  subgraph AGENT[Agent Runtime]
+    LLM[LLM / Agent Mode]
   end
 
-  subgraph EXT[VS Code Extension Host]
+  subgraph EXT[VS Code Extension]
     TOOLS[Agent Tools]
     ROUTER[Session Router]
-    CACHE[State Cache]
-    POLICY[Policy Gate]
-    AUDIT[Audit Sink]
+    CACHE[Runtime Cache]
+    GOV[Policy Gate + Audit]
+    STATIC[Static Robot Intelligence]
   end
 
-  subgraph DAP[RobotCode DAP Path]
-    LAUNCHER[Debug Launcher]
-    SERVER[Debug Server]
+  subgraph BRIDGE[Bridge Mode]
+    VSD[VS Code Debug API]
+    RCS[RobotCode Session]
+  end
+
+  subgraph EMBED[Embedded Mode]
+    ADBG[robotframework-aidebug Debug Adapter]
+    PY[Python Runtime Components]
   end
 
   subgraph RF[Robot Framework Runtime]
     EXEC[Execution Engine]
     VARS[Variable Store]
-    LISTENERS[Listeners v2 and v3]
+    LISTEN[Listeners / Events]
   end
 
-  AGENT --> TOOLS
-  TOOLS --> POLICY
-  POLICY --> ROUTER
-  ROUTER --> LAUNCHER
-  LAUNCHER --> SERVER
-  SERVER --> EXEC
+  LLM --> TOOLS
+  TOOLS --> GOV
+  GOV --> ROUTER
+  TOOLS --> STATIC
+  ROUTER --> VSD
+  VSD --> RCS
+  ROUTER --> ADBG
+  RCS --> EXEC
+  ADBG --> EXEC
   EXEC --> VARS
-  EXEC --> LISTENERS
-  SERVER --> AUDIT
-  POLICY --> AUDIT
-  SERVER --> CACHE
+  EXEC --> LISTEN
+  LISTEN --> CACHE
   CACHE --> TOOLS
+  GOV --> TOOLS
 ```
 
-## Upstream And Downstream Relationships
+## Relationships
 
-| Context | Relationship | Notes |
-|---|---|---|
-| Agent Interaction -> Debug Session Orchestration | Customer/Supplier | tools depend on stable routing and request semantics |
-| Debug Session Orchestration -> Robot Execution Control | Customer/Supplier | extension requests rely on server-side behavior |
-| Governance -> Agent Interaction | Conformist | tool availability conforms to policy decisions |
-| Governance -> Robot Execution Control | Conformist | execution requests must pass policy checks server-side too |
-| Robot Execution Control -> Robot Framework Runtime | Anti-corruption layer | RobotCode translates domain requests into Robot Framework semantics |
+| Upstream | Downstream | Relationship | Why |
+|---|---|---|---|
+| Agent Experience | Session Orchestration | Customer/Supplier | tools need stable transport-neutral operations |
+| Session Orchestration | Runtime Debug Control | Customer/Supplier | live data and commands are downstream runtime concerns |
+| Agent Experience | Static Robot Intelligence | Customer/Supplier | grounding and suggestions need editor-time context |
+| Governance | Agent Experience | Conformist | tool availability must reflect policy results |
+| Governance | Runtime Debug Control | Conformist | runtime execution must obey the same policy rules |
+| Packaging And Distribution | all contexts | Published Language | install, compatibility, and version rules affect every boundary |
 
-## External Systems
+## Key Boundary Decisions
 
-### VS Code Debug Platform
-
-Provides session lifecycle, debug custom events, and `customRequest()` transport.
-
-### Robot Framework Runtime
-
-Provides parsing, execution, listeners, variable replacement, and expression evaluation semantics.
-
-### Optional HTTP Or MCP Gateway
-
-This is an external downstream consumer of the same application layer. It is not part of the core model and should remain disabled by default.
+1. `Session Orchestration` must not know whether the runtime is bridged or embedded beyond capability metadata.
+2. `Static Robot Intelligence` and `Runtime Debug Control` are separate contexts because one is paused-runtime truth and the other is source-analysis truth.
+3. `Governance` is cross-cutting but not optional. It is not a utility layer.

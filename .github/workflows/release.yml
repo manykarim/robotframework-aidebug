@@ -25,12 +25,17 @@ jobs:
           cache: npm
           cache-dependency-path: vscode-extension/package-lock.json
       - name: Install backend dependencies
-        run: uv sync
+        run: uv sync --group dev
+      - name: Run Python validation
+        run: uv run --no-sync pytest
       - name: Build backend distributions
         run: uv build
       - name: Install extension dependencies
         working-directory: vscode-extension
         run: npm ci
+      - name: Run extension tests
+        working-directory: vscode-extension
+        run: npm test
       - name: Build VSIX
         working-directory: vscode-extension
         run: npm run package:vsix

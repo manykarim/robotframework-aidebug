@@ -17,6 +17,7 @@ Issues = "https://github.com/manykarim/robotframework-aidebug/issues"
 [project.scripts]
 robotframework-aidebug = "robotframework_aidebug.cli:main"
 robotframework-aidebug-stdio = "robotframework_aidebug.stdio_server:main"
+robotframework-aidebug-dap = "robotframework_aidebug.dap_server:main"
 
 [build-system]
 requires = ["hatchling"]

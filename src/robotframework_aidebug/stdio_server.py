@@ -20,9 +20,13 @@ class BackendApplication:
     def handle(self, command: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         args = arguments or {}
         if command == "health":
-            return {"status": "ok", "backend": "robotframework-aidebug"}
+            return {"status": "ok", "backend": "robotframework-aidebug", "protocols": ["json-stdio", "dap-stdio"]}
         if command == "resetDemo":
             return self.reset_demo()
+        if command == "threads":
+            return self.toolbox.get_threads()
+        if command == "robot/probeCapabilities":
+            return self.toolbox.probe_capabilities()
         if command == "robot/getExecutionState":
             return self.toolbox.get_state(**args)
         if command == "stackTrace":
@@ -34,8 +38,12 @@ class BackendApplication:
             return self.toolbox.get_variables(variables_reference, **args)
         if command == "robot/getVariablesSnapshot":
             return self.toolbox.get_variables_snapshot(**args)
+        if command == "robot/getAuditLog":
+            return self.toolbox.get_audit_log(args.get("limit", 20))
         if command == "evaluate":
             return self.toolbox.evaluate(args["expression"])
+        if command == "completions":
+            return self.toolbox.get_runtime_completions(args.get("text", ""))
         if command == "setVariable":
             return self.toolbox.set_variable(args["variablesReference"], args["name"], args["value"])
         if command == "robot/executeKeyword":
@@ -44,6 +52,8 @@ class BackendApplication:
             return self.toolbox.execute_snippet(args["snippet"])
         if command in {"continue", "pause", "next", "stepIn", "stepOut"}:
             return self.toolbox.control(command)
+        if command == "robot/sync":
+            return {"ok": True}
         raise AgentDebugError("unknown_command", f"Unknown command: {command}")
 
 

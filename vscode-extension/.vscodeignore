@@ -1,5 +1,0 @@
-.vscode/**
-.vscode-test/**
-node_modules/.cache/**
-test/**
-dist/*.tgz

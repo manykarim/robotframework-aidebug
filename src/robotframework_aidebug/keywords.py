@@ -28,6 +28,25 @@ class KeywordRegistry:
             self._normalize("Evaluate"): self._evaluate,
         }
 
+    def available_keywords(self) -> tuple[str, ...]:
+        return tuple(sorted(handler for handler in {
+            "Log",
+            "Log Variables",
+            "No Operation",
+            "Set Variable",
+            "Get Variable Value",
+            "Set Test Variable",
+            "Set Suite Variable",
+            "Set Global Variable",
+            "Set Local Variable",
+            "Should Be Equal",
+            "Create List",
+            "Append To List",
+            "Catenate",
+            "Fail",
+            "Evaluate",
+        }))
+
     def execute(self, session: Any, keyword: str, raw_args: tuple[str, ...]) -> Any:
         handler = self._handlers.get(self._normalize(keyword))
         if handler is None:

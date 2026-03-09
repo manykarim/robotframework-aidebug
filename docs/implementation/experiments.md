@@ -2,190 +2,120 @@
 
 ## Environment
 
-All experiments were run locally in this repository with `uv`.
-
-- `uv`: `0.9.26`
-- Python: `3.13.11`
+- Date: 2026-03-08
+- Python: managed with `uv run`
+- Cache override: `UV_CACHE_DIR=$PWD/.uv-cache`
 - Robot Framework: `7.4.2`
-- lockfile: [uv.lock](/home/many/workspace/robotframework-aidebug/uv.lock)
 
-## How The Environment Was Prepared
-
-```bash
-uv sync
-uv add --dev robotframework
-```
-
-## Experiment 1: Parse A Full Suite Model
-
-### Goal
-
-Confirm that Robot Framework's public parsing APIs are sufficient for a future structured execution path.
+## Experiment 1: Raw Body Fragments Versus Wrapped Snippets
 
 ### Command
 
 ```bash
-uv run python - <<'PY'
+mkdir -p .uv-cache && UV_CACHE_DIR=$PWD/.uv-cache uv run python - <<'PY'
 from robot.api.parsing import get_model
 from robot.running import TestSuite
 
-suite_text = '''*** Test Cases ***
-Example
-    ${value}=    Set Variable    42
-    Log    ${value}
-'''
-model = get_model(suite_text)
-suite = TestSuite.from_model(model)
-print(type(model).__name__)
-print([type(s).__name__ for s in model.sections])
-print([t.name for t in suite.tests])
+cases = {
+    'raw_keyword': 'Log    hi\n',
+    'wrapped_keyword': '*** Test Cases ***\nDemo\n    Log    hi\n',
+    'raw_if': 'IF    True\n    Log    yes\nEND\n',
+    'wrapped_if': '*** Test Cases ***\nDemo\n    IF    True\n        Log    yes\n    END\n',
+}
+for name, src in cases.items():
+    model = get_model(src)
+    sections = [type(s).__name__ for s in model.sections]
+    print(f'{name}: sections={sections}')
+    suite = TestSuite.from_model(model)
+    print(f'  runnable=True tests={[t.name for t in suite.tests]}')
 PY
 ```
 
-### Result
+### Output
 
-- `get_model()` returned a `File` model.
-- The model contained a `TestCaseSection`.
-- `TestSuite.from_model()` produced a runnable `TestSuite` with one test named `Example`.
+```text
+raw_keyword: sections=['ImplicitCommentSection']
+  runnable=True tests=[]
+wrapped_keyword: sections=['TestCaseSection']
+  runnable=True tests=['Demo']
+raw_if: sections=['ImplicitCommentSection']
+  runnable=True tests=[]
+wrapped_if: sections=['TestCaseSection']
+  runnable=True tests=['Demo']
+```
 
-### Implication
+### Conclusion
 
-Structured snippet execution can use public parsing APIs, but only if the content is expressed as a valid suite model.
+Raw body fragments do not become executable test bodies. A synthetic test-case wrapper is required for snippet execution.
 
-## Experiment 2: Raw Body Fragments Are Not Executable Models
-
-### Goal
-
-Test whether a multi-line Robot body can be parsed directly without a synthetic wrapper.
+## Experiment 2: Variable Replacement Versus Expression Evaluation Syntax
 
 ### Command
 
 ```bash
-uv run python - <<'PY'
-from robot.api.parsing import get_model
+mkdir -p .uv-cache && UV_CACHE_DIR=$PWD/.uv-cache uv run python - <<'PY'
+from robot.variables import Variables
+from robot.variables.replacer import VariableReplacer
+from robot.variables.evaluation import evaluate_expression
 
-for text in ['Log    hi\n', 'IF    True\n    Log    inside\nEND\n']:
-    model = get_model(text)
-    print([type(s).__name__ for s in model.sections], len(model.errors))
+variables = Variables()
+variables['${NAME}'] = 'Ada'
+variables['${COUNT}'] = 3
+replacer = VariableReplacer(variables)
+print('replace_scalar(${NAME})=', replacer.replace_scalar('${NAME}'))
+print('replace_string(Hello ${NAME})=', replacer.replace_string('Hello ${NAME}'))
+print('evaluate_expression($COUNT + 1)=', evaluate_expression('$COUNT + 1', variables))
+try:
+    print('evaluate_expression(${COUNT} + 1)=', evaluate_expression('${COUNT} + 1', variables))
+except Exception as e:
+    print('evaluate_expression(${COUNT} + 1)=ERROR', type(e).__name__, e)
 PY
 ```
 
-### Result
+### Output
 
-Both samples produced an `ImplicitCommentSection` with zero parse errors.
+```text
+replace_scalar(${NAME})= Ada
+replace_string(Hello ${NAME})= Hello Ada
+evaluate_expression($COUNT + 1)= 4
+evaluate_expression(${COUNT} + 1)=ERROR DataError Evaluating expression '${COUNT} + 1' failed: SyntaxError: invalid syntax (<string>, line 1)
 
-### Implication
+Variables in the original expression '${COUNT} + 1' were resolved before the expression was evaluated. Try using '$COUNT + 1' syntax to avoid that. See Evaluating Expressions appendix in Robot Framework User Guide for more details.
+```
 
-A future `robot/executeSnippet` implementation must wrap the body in a synthetic suite/test envelope before parsing. This is not optional.
+### Conclusion
 
-## Experiment 3: Wrapped Control Flow Parses Correctly
+The docs must distinguish replacement syntax from expression syntax. This directly affects any live snippet or expression execution feature.
 
-### Goal
-
-Verify that the wrapper approach can preserve structured body nodes such as `IF`.
+## Experiment 3: Local Reference Benchmark
 
 ### Command
 
 ```bash
-uv run python - <<'PY'
-from robot.api.parsing import get_model
-from robot.running import TestSuite
-
-snippet = 'IF    True\n    Log    inside\nEND\n'
-wrapped = '*** Test Cases ***\nProbe\n' + '\n'.join('    ' + line for line in snippet.splitlines()) + '\n'
-model = get_model(wrapped)
-suite = TestSuite.from_model(model)
-print(len(model.errors))
-print([type(item).__name__ for item in suite.tests[0].body])
-PY
+mkdir -p .uv-cache && UV_CACHE_DIR=$PWD/.uv-cache uv run python -m robotframework_aidebug.benchmark
 ```
 
-### Result
+### Output Summary
 
-- parse errors: `0`
-- body item types: `['If']`
+```json
+{
+  "benchmarks": [
+    {"name": "get_state", "avg_ms": 0.0197, "p95_ms": 0.0281},
+    {"name": "variables_snapshot", "avg_ms": 0.0475, "p95_ms": 0.0644},
+    {"name": "execute_keyword", "avg_ms": 0.1984, "p95_ms": 0.2443},
+    {"name": "execute_snippet_cached", "avg_ms": 0.5522, "p95_ms": 0.7096},
+    {"name": "execute_snippet_cold", "avg_ms": 1.4174, "p95_ms": 1.9452},
+    {"name": "set_variable", "avg_ms": 0.0384, "p95_ms": 0.0496}
+  ]
+}
+```
 
-### Implication
+### Conclusion
 
-The wrapper approach is compatible with structured Robot control flow and is a sound basis for the future snippet execution design.
+The local prototype is not proof of live transport performance, but it confirms that core runtime helpers are comfortably below interactive latency targets. The live implementation should spend its performance budget mainly on transport, synchronization, and policy overhead.
 
-## Experiment 4: Listener Version Behavior
+## Design Impact
 
-### Goal
-
-Verify how listener classes behave in Robot Framework 7.4.2 when the API version is omitted.
-
-### Command Summary
-
-A temporary suite was executed with three listeners:
-
-- explicit v2 listener,
-- explicit v3 listener,
-- listener with no `ROBOT_LISTENER_API_VERSION`.
-
-### Result
-
-- v2 listener methods received `str` and `dict` style arguments.
-- v3 listener methods received `TestSuite` and `TestCase` objects.
-- the listener with no explicit API version also received the v3-style object arguments.
-
-### Implication
-
-Any new listener-adjacent documentation should assume v3-style behavior by default for Robot Framework 7.4.2, while preserving compatibility with existing RobotCode dual-listener usage.
-
-## Experiment 5: Variable Replacement Versus Expression Evaluation
-
-### Goal
-
-Confirm the practical difference between variable replacement APIs and expression evaluation APIs.
-
-### Command Summary
-
-A temporary script used:
-
-- `Variables.replace_scalar('${NAME}')`
-- `Variables.replace_string('Hello ${NAME}!')`
-- `evaluate_expression('$NUM * 6', vars_store)`
-- `evaluate_expression('${NUM} * 6', vars_store)`
-
-### Result
-
-- scalar replacement returned `world`
-- string replacement returned `Hello world!`
-- `$NUM * 6` evaluated successfully to `42`
-- `${NUM} * 6` raised a `DataError` caused by invalid syntax
-
-### Implication
-
-The documentation and future implementation must distinguish:
-
-- variable replacement syntax for literal substitution,
-- `$name` expression syntax for `evaluate_expression()`.
-
-## Experiment 6: Variable Scope Semantics
-
-### Goal
-
-Confirm the behavior of test, suite, and global variable scopes in one Robot execution.
-
-### Command Summary
-
-Two temporary suites were executed.
-
-- suite A set test, suite, and global variables,
-- a later test in suite A checked visibility,
-- suite B checked cross-suite visibility.
-
-### Result
-
-- test variable was missing in a later test,
-- suite variable was visible inside the same suite,
-- global variable was visible across suites in the same run.
-
-### Implication
-
-Future variable mutation tools must expose scope semantics explicitly and avoid implying that all mutations have the same visibility rules.
-
-## Conclusion
-
-The current design is supported by the local experiments, with one important refinement: snippet execution cannot rely on raw body parsing and must use a `SnippetEnvelope` pattern.
+1. Snippet execution must always use a wrapper.
+2. Expression-based evaluation must use Robot Framework's `$VAR` expression form where applicable.
+3. Performance work should prioritize transport, event handling, and caching discipline rather than micro-optimizing the already-fast local helpers.

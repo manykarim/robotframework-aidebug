@@ -1,17 +1,17 @@
-async function runRecoveryJourney(client) {
-  const state = await client.request('robot/getExecutionState', { includeStack: true, includeScopes: true });
+async function runRecoveryJourney(transport) {
+  const state = await transport.getExecutionState({ includeStack: true, includeScopes: true });
   const localRef = state.scopes[0].variablesReference;
-  await client.request('setVariable', {
+  await transport.setVariable({
     variablesReference: localRef,
     name: '${status}',
     value: "'RECOVERED'"
   });
-  await client.request('robot/executeKeyword', {
+  await transport.executeKeyword({
     keyword: 'Set Suite Variable',
     args: ['${recovery_flag}', 'ready'],
     assign: []
   });
-  await client.request('robot/executeSnippet', {
+  await transport.executeSnippet({
     snippet: [
       'FOR    ${fruit}    IN    kiwi    mango',
       '    Append To List    ${items}    ${fruit}',
@@ -20,7 +20,7 @@ async function runRecoveryJourney(client) {
       'Log    Recovery journey complete'
     ].join('\n')
   });
-  return client.request('robot/getVariablesSnapshot', {
+  return transport.getVariablesSnapshot({
     scopes: ['local', 'test', 'suite', 'global'],
     max_items: 20
   });

@@ -1,51 +1,51 @@
-# ADR-004: Deliver Incrementally With Read-Only First And Experiment-Backed Design
+# ADR-004: Enforce Security, Safety, Audit, And Operational Guardrails
 
 - Status: Accepted
 - Date: 2026-03-08
 
 ## Context
 
-At the time of this decision, the repo did not yet contain the RobotCode implementation. The design work therefore had to avoid two failure modes:
+The product can read runtime state, execute keywords, mutate variables, and run snippets in a paused Robot Framework session. Those operations can expose secrets, change runtime behavior, or destabilize the session if performed carelessly.
 
-1. pretending uncertain Robot Framework behavior is settled,
-2. overcommitting to a large implementation slice before the lowest-risk path is proven.
+A design that only focuses on feature completeness would be operationally unsafe.
 
 ## Decision
 
-Delivery will proceed in phases:
+Security, safety, audit, and guardrails are mandatory architecture concerns, not optional polish.
 
-1. documentation and validation experiments,
-2. read-only tooling and execution-state snapshots,
-3. structured mutation and keyword execution,
-4. optional external bridge after the in-editor path is stable.
+The product will enforce all of the following:
 
-The project will use `uv` to manage the Python environment and lock the experiment dependencies used for validation.
-
-## Verified Inputs Used For This ADR
-
-The design package in this repository was validated against:
-
-- Python `3.13.11`
-- `uv 0.9.26`
-- `robotframework 7.4.2`
-
-The detailed findings are captured in [docs/implementation/experiments.md](/home/many/workspace/robotframework-aidebug/docs/implementation/experiments.md).
+1. explicit operating modes: `off`, `readOnly`, `fullControl`
+2. workspace trust and explicit enablement checks
+3. paused-only execution for writes and runtime execution
+4. redaction and truncation before tool output
+5. rate limiting and timeout budgets
+6. durable audit records for mutations and execution attempts
+7. fail-closed behavior when policy evaluation is unavailable
 
 ## Rationale
 
-1. The read-only feature set provides immediate value with lower risk.
-2. Experiment-backed design lets future implementation work start from confirmed semantics.
-3. `uv.lock` makes the validation environment reproducible.
+1. AI-assisted debugging is high leverage and high risk.
+2. Prompt text is not a security boundary.
+3. Security and audit requirements must survive both bridge and embedded modes.
 
 ## Consequences
 
 ### Positive
 
-- Lower implementation risk.
-- Better documentation quality.
-- Easier review because assumptions are explicit.
+- The product can be operated in regulated or security-conscious environments.
+- Failures become diagnosable instead of silent.
+- Future external gateways can reuse the same policy domain.
 
 ### Negative
 
-- Some design documents may need adjustment when integrated into the actual RobotCode repo.
-- The final package boundaries may shift when mapped onto the real monorepo layout.
+- Some operations will be intentionally slower because of validation, logging, or caching.
+- User experience must explain policy denials clearly.
+- More configuration and test coverage are required.
+
+## Security Baseline
+
+1. No network listeners enabled by default.
+2. No secret-bearing payload stored in raw form in audit trails.
+3. No hidden execution when the session is running.
+4. No silent fallback from read-only to full-control behavior.

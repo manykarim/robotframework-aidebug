@@ -2,39 +2,42 @@
 
 ## Problem Statement
 
-Design a system that lets an AI agent inspect and influence a live Robot Framework debug session in a controlled, auditable way without bypassing RobotCode's existing debugger architecture.
+Design a standalone product that lets an AI agent inspect and influence a live Robot Framework debug session in a controlled, auditable, high-reliability way.
+
+The product must support both:
+
+1. integration with an existing RobotCode session
+2. a future fully independent debugger mode
 
 ## Ubiquitous Language
 
-- `Agent Tool`: a deterministic editor-hosted function exposed to the language model runtime.
-- `Agent Session`: the active logical interaction between tools and one RobotCode debug session.
-- `Execution Snapshot`: a compact, bounded summary of current runtime state.
-- `Session Router`: the extension-side component that resolves the active RobotCode debug session.
-- `Execution Command`: a structured request to read state, mutate variables, or execute Robot behavior.
-- `Policy Gate`: the component that decides whether a command is allowed.
-- `Audit Entry`: the durable record of a tool action and its outcome.
-- `Snippet Envelope`: the synthetic suite/test wrapper used to parse multi-line Robot body content safely.
+- `Agent Tool`: a deterministic tool exposed to the editor-hosted language model runtime
+- `Agent Session`: the AI-facing control plane bound to one debug session
+- `Session Router`: the component that chooses the active live session and transport mode
+- `Bridge Mode`: integration through an active RobotCode session
+- `Embedded Mode`: integration through a `robotframework-aidebug` debug adapter
+- `Execution Snapshot`: bounded summary of current runtime state
+- `Runtime Namespace`: names and variables visible in the paused execution context
+- `Static Namespace`: editor-time Robot Framework symbol model derived from source analysis
+- `Policy Gate`: component that decides whether a requested operation is allowed
+- `Audit Entry`: durable record of an attempted or completed action
+- `Capability Probe`: transport-neutral check that determines what the active session supports
 
 ## Bounded Contexts
 
-1. `Agent Interaction`
-   - lives in the VS Code extension host
-   - owns tools, invocation text, summarization, and user-facing failures
-2. `Debug Session Orchestration`
-   - lives across the extension and DAP boundary
-   - owns session routing, request dispatch, and response correlation
-3. `Robot Execution Control`
-   - lives in the Python debug server
-   - owns execution-state reading, variable access, stepping, keyword execution, and snippet parsing
-4. `Governance`
-   - spans extension and debug server
-   - owns enablement, redaction, audit, quotas, and read/write separation
+1. `Agent Experience`
+   Owns tool registration, UX copy, result summarization, and user-facing explanations.
+2. `Session Orchestration`
+   Owns transport selection, session routing, correlation ids, and capability probing.
+3. `Runtime Debug Control`
+   Owns live stack, scopes, variables, execution control, keyword execution, and snippet execution.
+4. `Static Robot Intelligence`
+   Owns editor-time namespace resolution, keyword documentation, import awareness, and contextual grounding.
+5. `Governance`
+   Owns policy evaluation, redaction, rate limiting, audit, and safe defaults.
+6. `Packaging And Distribution`
+   Owns artifact separation, compatibility policy, install flows, and version negotiation.
 
-## Design Principle
+## Strategic Design Principle
 
-Keep domain behavior close to the boundary that can enforce it.
-
-- tool discoverability and UX belong in the extension,
-- execution semantics belong in the debug server,
-- safety rules are checked in both places,
-- free-form agent behavior is never trusted as the protocol.
+Keep transport and runtime concerns replaceable, but keep policy and domain language stable.

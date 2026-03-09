@@ -4,6 +4,7 @@ import argparse
 import json
 
 from .benchmark import run_benchmarks
+from .dap_server import main as dap_main
 from .demo import build_demo_toolbox
 from .stdio_server import main as stdio_main
 
@@ -16,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     bench = subparsers.add_parser("benchmark", help="Run local benchmarks.")
     bench.add_argument("--iterations", type=int, default=500)
     subparsers.add_parser("stdio-server", help="Run the stdio JSON backend server.")
+    subparsers.add_parser("dap-server", help="Run the DAP stdio debug adapter.")
     return parser
 
 
@@ -46,5 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if command == "stdio-server":
         return stdio_main()
+    if command == "dap-server":
+        return dap_main()
     parser.error(f"Unknown command: {command}")
     return 2

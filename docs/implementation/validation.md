@@ -1,70 +1,61 @@
 # Validation
 
-## Automated Validation Commands
+## Commands Run
+
+### Python
 
 ```bash
-uv sync
-uv run pytest
-uv run pytest --cov=robotframework_aidebug --cov-report=term-missing
-uv run python -m robotframework_aidebug
-uv run python -m robotframework_aidebug.benchmark
+.venv/bin/python -m pytest
+.venv/bin/python -m pytest --cov=robotframework_aidebug --cov-report=term-missing
+.venv/bin/python -m robotframework_aidebug demo
+mkdir -p .uv-cache && UV_CACHE_DIR=$PWD/.uv-cache uv run --no-sync python -m robotframework_aidebug.benchmark
+```
+
+### Extension
+
+```bash
 cd vscode-extension
-npm install
 npm test
 npm run package:vsix
-code --install-extension dist/robotframework-aidebug-vscode-0.1.0.vsix --force
 ```
 
 ## Current Results
 
-- python tests: `24 passed`
-- package coverage: `88%`
+- Python tests: `30 passed`
+- Python coverage: `87%`
+- Extension tests: `2 passed`
 - CLI demo: verified
-- benchmark runner: verified
-- extension tests: `2 passed`
+- benchmark command: verified
 - VSIX packaging: verified
-- VSIX manual installation through `code --install-extension`: verified
 
-## End-To-End User Journeys Covered
+## What Is Covered
 
-The e2e suite in [tests/e2e/test_user_journeys.py](/home/many/workspace/robotframework-aidebug/tests/e2e/test_user_journeys.py) covers three deep workflows.
+### Python
 
-### Journey 1: Diagnose, Recover, Resume
+- policy and redaction rules
+- structured and standard command dispatch
+- runtime completions
+- audit-log exposure
+- snippet parsing and cache behavior
+- stdio backend protocol
+- DAP adapter protocol
+- end-to-end DAP journey through a real subprocess
 
-- inspect paused state,
-- inspect redacted variables,
-- set a local variable,
-- set suite and global variables through structured keywords,
-- execute a multi-step snippet with `FOR`, `IF`, assignment, and logging,
-- verify nested list mutation,
-- continue and pause the session again,
-- assert audit and event history.
+### Extension
 
-### Journey 2: Read-Only Safety
+- backend transport flow
+- router behavior for active debug sessions versus backend fallback
+- custom-event sync acknowledgement
+- static-context extraction
+- keyword-expression formatting for RobotCode-style REPL execution
 
-- inspect state and variables,
-- verify redaction,
-- verify that keyword and snippet execution are rejected in `readOnly` mode.
+## Key End-To-End Journeys
 
-### Journey 3: Deep Variable Navigation And Stepping
+1. full-control backend journey with mutation, keyword execution, snippet execution, stepping, and audit checks
+2. read-only safety journey
+3. deep nested-variable navigation and stepping journey
+4. embedded DAP journey through `robotframework_aidebug.dap_server`
 
-- navigate from a scope reference into a nested list,
-- mutate a specific list item through `setVariable`,
-- step in, step out, and next,
-- evaluate an expression using Robot variable semantics.
+## Residual Gaps
 
-## Validation Summary
-
-The implemented package satisfies the local repository scope:
-
-- structured command dispatch,
-- policy-gated read and write paths,
-- structured keyword execution,
-- structured snippet execution with Robot parser wrapping,
-- audit logging,
-- nested variable traversal and mutation,
-- demo CLI,
-- repeatable benchmark harness,
-- standalone VS Code extension package,
-- offline VSIX installation path,
-- future marketplace-ready extension metadata.
+The local repository now implements the planned architecture and validates it locally. The remaining uncertainty is external compatibility drift when talking to future RobotCode and VS Code versions, which is a release-management concern rather than a missing local feature.
