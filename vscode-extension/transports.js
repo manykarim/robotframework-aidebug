@@ -11,7 +11,82 @@ function formatKeywordExpression(keyword, args = [], assign = []) {
     parts.push(`${assign.join('    ')}=`);
   }
   parts.push(keyword, ...args.map(quoteRobotArgument));
-  return `! ${parts.join('    ')}`;
+  return parts.join('    ');
+}
+
+function formatLegacyKeywordExpression(keyword, args = [], assign = []) {
+  return `! ${formatKeywordExpression(keyword, args, assign)}`;
+}
+
+function escapeRobotInterpolation(text) {
+  if (typeof text !== 'string' || !text.includes('${')) {
+    return text;
+  }
+  let result = '';
+  for (let index = 0; index < text.length; index += 1) {
+    const current = text[index];
+    const next = text[index + 1];
+    const previous = index > 0 ? text[index - 1] : '';
+    if (current === '$' && next === '{' && previous !== '\\') {
+      result += '\\$';
+      continue;
+    }
+    result += current;
+  }
+  return result;
+}
+
+function normalizeToolError(error, fallbackCode = 'RUNTIME_ERROR') {
+  const message = error?.message || String(error);
+  const normalized = new Error(message);
+  if (/No keyword with name/i.test(message)) {
+    normalized.code = 'KEYWORD_NOT_FOUND';
+  } else if (/Timeout/i.test(message)) {
+    normalized.code = 'SELECTOR_TIMEOUT';
+  } else if (/Invalid regular expression flags/i.test(message)) {
+    normalized.code = 'JS_EVAL_ERROR';
+  } else if (/argument|selector|locator/i.test(message)) {
+    normalized.code = 'ARGUMENT_SHAPE_ERROR';
+  } else {
+    normalized.code = error?.code || fallbackCode;
+  }
+  return normalized;
+}
+
+function validateKeywordInvocation(argumentsObject) {
+  if (!argumentsObject.keyword || typeof argumentsObject.keyword !== 'string') {
+    const error = new Error('execute_keyword requires a non-empty keyword string.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
+  if (argumentsObject.assign && !Array.isArray(argumentsObject.assign)) {
+    const error = new Error('execute_keyword assign must be an array of variable names.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
+  if (argumentsObject.args && !Array.isArray(argumentsObject.args)) {
+    const error = new Error('execute_keyword args must be an array of strings.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
+}
+
+function validatePageScriptInvocation(argumentsObject) {
+  if (!argumentsObject.script || typeof argumentsObject.script !== 'string') {
+    const error = new Error('execute_page_script requires a non-empty script string.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
+  if (argumentsObject.selector !== undefined && typeof argumentsObject.selector !== 'string') {
+    const error = new Error('execute_page_script selector must be a string.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
+  if (argumentsObject.assign && !Array.isArray(argumentsObject.assign)) {
+    const error = new Error('execute_page_script assign must be an array of variable names.');
+    error.code = 'ARGUMENT_SHAPE_ERROR';
+    throw error;
+  }
 }
 
 async function tryRequest(session, command, argumentsObject = {}) {
@@ -55,9 +130,19 @@ class BackendTransport {
     return this.client.request('robot/getVariablesSnapshot', argumentsObject);
   }
 
+  async getRuntimeContext(argumentsObject = {}) {
+    await this.ensureStarted();
+    return this.client.request('robot/getRuntimeContext', argumentsObject);
+  }
+
   async executeKeyword(argumentsObject) {
     await this.ensureStarted();
     return this.client.request('robot/executeKeyword', argumentsObject);
+  }
+
+  async executePageScript(argumentsObject) {
+    await this.ensureStarted();
+    return this.client.request('robot/executePageScript', argumentsObject);
   }
 
   async executeSnippet(argumentsObject) {
@@ -67,7 +152,16 @@ class BackendTransport {
 
   async setVariable(argumentsObject) {
     await this.ensureStarted();
-    return this.client.request('setVariable', argumentsObject);
+    let payload = { ...argumentsObject };
+    if (!payload.variablesReference && payload.scope) {
+      const state = await this.client.request('robot/getExecutionState', { includeStack: true, includeScopes: true });
+      const target = (state.scopes || []).find(scope => scope.name.toLowerCase() === String(payload.scope).toLowerCase());
+      if (!target) {
+        throw new Error(`Unknown scope: ${payload.scope}`);
+      }
+      payload = { ...payload, variablesReference: target.variablesReference };
+    }
+    return this.client.request('setVariable', payload);
   }
 
   async evaluate(argumentsObject) {
@@ -177,44 +271,174 @@ class DebugSessionTransport {
     }
     const state = await this.getExecutionState({ includeStack: true, includeScopes: true });
     const scopes = (argumentsObject.scopes || ['Local', 'Test', 'Suite', 'Global']).map(scope => scope.toLowerCase());
+    const names = new Set((argumentsObject.names || []).map(name => String(name).toLowerCase()));
+    const start = argumentsObject.start || 0;
     const limit = argumentsObject.max_items || argumentsObject.maxItems || 20;
     const variables = {};
     let truncated = false;
+    let nextStart = null;
     for (const scope of state.scopes || []) {
       if (!scopes.includes(scope.name.toLowerCase())) {
         continue;
       }
       const data = await this.session.customRequest('variables', { variablesReference: scope.variablesReference });
       const entries = {};
-      const list = data.variables || [];
+      let list = data.variables || [];
+      if (names.size) {
+        list = list.filter(item => names.has(String(item.name).toLowerCase()));
+      }
+      list = list.slice(start);
       for (const [index, item] of list.entries()) {
         if (index >= limit) {
           truncated = true;
+          nextStart = start + limit;
           break;
         }
         entries[item.name] = item.value;
       }
       variables[scope.name.toLowerCase()] = entries;
     }
-    return { variables, truncated };
+    return { variables, truncated, nextStart };
+  }
+
+  async getRuntimeContext(argumentsObject = {}) {
+    const structured = await tryRequest(this.session, 'robot/getRuntimeContext', argumentsObject);
+    if (!structured.__transportError) {
+      return structured;
+    }
+    const state = await this.getExecutionState({ includeStack: true, includeScopes: false, maxLogLines: 10 });
+    const completions = await this.getRuntimeCompletions({ text: argumentsObject.text || '' });
+    return {
+      frameId: state.topFrame?.id || null,
+      stoppedKeyword: state.currentItem?.name || state.topFrame?.name || 'unknown',
+      namespaceSummary: {
+        libraries: [],
+        resources: [state.currentItem?.source || state.topFrame?.source || 'unknown'],
+        variables: []
+      },
+      completions: completions.targets || [],
+      truncated: false
+    };
   }
 
   async executeKeyword(argumentsObject) {
+    validateKeywordInvocation(argumentsObject);
     const structured = await tryRequest(this.session, 'robot/executeKeyword', argumentsObject);
     if (!structured.__transportError) {
       return structured;
     }
-    const expression = formatKeywordExpression(argumentsObject.keyword, argumentsObject.args, argumentsObject.assign);
-    const result = await this.session.customRequest('evaluate', {
-      expression,
-      context: 'repl',
-      frameId: argumentsObject.frameId
-    });
+    let result;
+    try {
+      result = await this.session.customRequest('evaluate', {
+        expression: formatKeywordExpression(argumentsObject.keyword, argumentsObject.args, argumentsObject.assign),
+        context: 'repl',
+        frameId: argumentsObject.frameId
+      });
+    } catch (plainError) {
+      try {
+        result = await this.session.customRequest('evaluate', {
+          expression: formatLegacyKeywordExpression(argumentsObject.keyword, argumentsObject.args, argumentsObject.assign),
+          context: 'repl',
+          frameId: argumentsObject.frameId
+        });
+      } catch (legacyError) {
+        throw normalizeToolError(plainError);
+      }
+    }
+    const assigned = {};
+    for (const name of argumentsObject.assign || []) {
+      try {
+        const value = await this.session.customRequest('evaluate', { expression: name, frameId: argumentsObject.frameId });
+        assigned[name] = value.result;
+      } catch (_error) {
+        assigned[name] = '<unavailable>';
+      }
+    }
     return {
       status: 'PASS',
       returnValueRepr: result.result,
-      assigned: {}
+      assigned,
+      executionPath: { mode: 'evaluate-repl', keyword: argumentsObject.keyword, syntax: 'plain-first' }
     };
+  }
+
+  async executePageScript(argumentsObject) {
+    validatePageScriptInvocation(argumentsObject);
+    const structured = await tryRequest(this.session, 'robot/executePageScript', argumentsObject);
+    if (!structured.__transportError) {
+      return structured;
+    }
+
+    const selector = argumentsObject.selector || 'body';
+    const escapedScript = escapeRobotInterpolation(argumentsObject.script);
+    const keywordCandidates = argumentsObject.keyword
+      ? [argumentsObject.keyword]
+      : ['Evaluate JavaScript', 'Browser.Evaluate JavaScript'];
+
+    let firstPlainError = null;
+    let lastPlainError = null;
+    for (const keyword of keywordCandidates) {
+      try {
+        const result = await this.session.customRequest('evaluate', {
+          expression: formatKeywordExpression(keyword, [selector, escapedScript], argumentsObject.assign || []),
+          context: 'repl',
+          frameId: argumentsObject.frameId
+        });
+        const assigned = {};
+        for (const name of argumentsObject.assign || []) {
+          try {
+            const value = await this.session.customRequest('evaluate', { expression: name, frameId: argumentsObject.frameId });
+            assigned[name] = value.result;
+          } catch (_error) {
+            assigned[name] = '<unavailable>';
+          }
+        }
+        return {
+          status: 'PASS',
+          selector,
+          returnValueRepr: result.result,
+          assigned,
+          executionPath: { mode: 'evaluate-repl', keyword, syntax: 'plain', escapedInterpolation: escapedScript !== argumentsObject.script }
+        };
+      } catch (plainError) {
+        firstPlainError ||= plainError;
+        lastPlainError = plainError;
+        const normalized = normalizeToolError(plainError);
+        if (normalized.code !== 'KEYWORD_NOT_FOUND') {
+          throw normalized;
+        }
+      }
+    }
+
+    for (const keyword of keywordCandidates) {
+      try {
+        const result = await this.session.customRequest('evaluate', {
+          expression: formatLegacyKeywordExpression(keyword, [selector, escapedScript], argumentsObject.assign || []),
+          context: 'repl',
+          frameId: argumentsObject.frameId
+        });
+        const assigned = {};
+        for (const name of argumentsObject.assign || []) {
+          try {
+            const value = await this.session.customRequest('evaluate', { expression: name, frameId: argumentsObject.frameId });
+            assigned[name] = value.result;
+          } catch (_error) {
+            assigned[name] = '<unavailable>';
+          }
+        }
+        return {
+          status: 'PASS',
+          selector,
+          returnValueRepr: result.result,
+          assigned,
+          executionPath: { mode: 'evaluate-repl', keyword, syntax: 'legacy', escapedInterpolation: escapedScript !== argumentsObject.script }
+        };
+      } catch (_legacyError) {
+        // keep the original plain error as the user-visible failure
+      }
+    }
+
+    throw normalizeToolError(firstPlainError || lastPlainError || new Error('Page script execution failed.'));
   }
 
   async executeSnippet(argumentsObject) {
@@ -234,7 +458,16 @@ class DebugSessionTransport {
   }
 
   async setVariable(argumentsObject) {
-    return this.session.customRequest('setVariable', argumentsObject);
+    let payload = { ...argumentsObject };
+    if (!payload.variablesReference && payload.scope) {
+      const state = await this.getExecutionState({ includeStack: true, includeScopes: true });
+      const target = (state.scopes || []).find(scope => scope.name.toLowerCase() === String(payload.scope).toLowerCase());
+      if (!target) {
+        throw new Error(`Unknown scope: ${payload.scope}`);
+      }
+      payload = { ...payload, variablesReference: target.variablesReference };
+    }
+    return this.session.customRequest('setVariable', payload);
   }
 
   async evaluate(argumentsObject) {
@@ -266,5 +499,7 @@ class DebugSessionTransport {
 module.exports = {
   BackendTransport,
   DebugSessionTransport,
-  formatKeywordExpression
+  escapeRobotInterpolation,
+  formatKeywordExpression,
+  formatLegacyKeywordExpression
 };

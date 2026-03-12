@@ -58,6 +58,11 @@ def run_benchmarks(iterations: int = 500) -> dict[str, Any]:
             iterations,
         ),
         _measure(
+            "execute_page_script",
+            lambda: toolbox.execute_page_script("return `${CSS.escape(el.id)}`;", "body"),
+            iterations,
+        ),
+        _measure(
             "execute_snippet_cached",
             lambda: toolbox.execute_snippet("${x}=    Set Variable    1\nIF    $x == 1\n    Log    cached\nEND"),
             iterations,

@@ -21,6 +21,7 @@ class KeywordRegistry:
             self._normalize("Set Global Variable"): self._set_global_variable,
             self._normalize("Set Local Variable"): self._set_local_variable,
             self._normalize("Should Be Equal"): self._should_be_equal,
+            self._normalize("Should Be Equal As Integers"): self._should_be_equal_as_integers,
             self._normalize("Create List"): self._create_list,
             self._normalize("Append To List"): self._append_to_list,
             self._normalize("Catenate"): self._catenate,
@@ -40,6 +41,7 @@ class KeywordRegistry:
             "Set Global Variable",
             "Set Local Variable",
             "Should Be Equal",
+            "Should Be Equal As Integers",
             "Create List",
             "Append To List",
             "Catenate",
@@ -117,6 +119,14 @@ class KeywordRegistry:
     @staticmethod
     def _create_list(session: Any, raw_args: tuple[str, ...], resolved: tuple[Any, ...]) -> list[Any]:
         return list(resolved)
+
+    @staticmethod
+    def _should_be_equal_as_integers(session: Any, raw_args: tuple[str, ...], resolved: tuple[Any, ...]) -> None:
+        if len(resolved) < 2:
+            raise AgentDebugError("invalid_arguments", "Should Be Equal As Integers requires two arguments.")
+        if int(resolved[0]) != int(resolved[1]):
+            raise AgentDebugError("assertion_failed", f"{int(resolved[0])!r} != {int(resolved[1])!r}")
+        return None
 
     @staticmethod
     def _append_to_list(session: Any, raw_args: tuple[str, ...], resolved: tuple[Any, ...]) -> list[Any]:

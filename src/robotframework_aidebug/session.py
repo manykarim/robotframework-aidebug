@@ -290,6 +290,8 @@ class AgentDebugSession:
         scopes: Iterable[str] = ("local", "test", "suite", "global"),
         max_items: int | None = None,
         maxItems: int | None = None,
+        start: int = 0,
+        names: Iterable[str] | None = None,
         redactPatterns: tuple[str, ...] | None = None,
         redact_patterns: tuple[str, ...] | None = None,
     ) -> dict[str, Any]:
@@ -297,19 +299,60 @@ class AgentDebugSession:
         limit = maxItems or max_items or self.policy.config.max_items
         snapshot: dict[str, dict[str, str]] = {}
         truncated = False
+        next_start: int | None = None
         custom_redactor = self.policy.redactor
         patterns = redactPatterns if redactPatterns is not None else redact_patterns
         if patterns is not None:
             custom_redactor = type(self.policy.redactor)(tuple(patterns), self.policy.config.max_value_chars)
+        normalized_names = {name.lower() for name in names or ()}
         for scope in scopes:
             rendered: dict[str, str] = {}
-            for index, (name, value) in enumerate(self._mapping_for_scope(scope).items()):
+            items = list(self._mapping_for_scope(scope).items())
+            if normalized_names:
+                items = [(name, value) for name, value in items if self._display_name(name).lower() in normalized_names]
+            items = items[start:]
+            for index, (name, value) in enumerate(items):
                 if index >= limit:
                     truncated = True
+                    next_start = start + limit
                     break
                 rendered[self._display_name(name)] = custom_redactor.summarize(name, value)
             snapshot[scope] = rendered
-        return {"variables": snapshot, "truncated": truncated}
+        return {"variables": snapshot, "truncated": truncated, "nextStart": next_start}
+
+    def get_runtime_context(
+        self,
+        frameId: int | None = None,
+        includeCompletions: bool = True,
+        includeNamespaceSummary: bool = True,
+        maxItems: int | None = None,
+        max_items: int | None = None,
+        text: str = "",
+    ) -> dict[str, Any]:
+        self.policy.ensure_read()
+        limit = maxItems or max_items or 25
+        payload: dict[str, Any] = {
+            "frameId": frameId or self.data.stack_frames[0].id,
+            "stoppedKeyword": self.data.current_item.name,
+        }
+        if includeNamespaceSummary:
+            snapshot = self.get_variables_snapshot(scopes=("local", "test"), max_items=limit)["variables"]
+            visible_variables: list[str] = []
+            for scope_values in snapshot.values():
+                visible_variables.extend(scope_values.keys())
+            payload["namespaceSummary"] = {
+                "libraries": ["BuiltIn"],
+                "resources": [self.source],
+                "variables": visible_variables[:limit],
+            }
+        if includeCompletions:
+            completions = self.runtime_completions(text=text, frameId=frameId)
+            payload["completions"] = completions["targets"][:limit]
+            payload["truncated"] = len(completions["targets"]) > limit
+        else:
+            payload["completions"] = []
+            payload["truncated"] = False
+        return payload
 
     def evaluate(self, expression: str, frameId: int | None = None) -> dict[str, Any]:
         self.policy.ensure_read()
@@ -450,6 +493,42 @@ class AgentDebugSession:
             result = self._execute_node(node)
         self.record_event("robot/agentAction", {"action": "executeSnippet"})
         return {"status": "OK", "resultRepr": self.policy.redactor.summarize("result", result)}
+
+    def execute_page_script(
+        self,
+        script: str,
+        selector: str = "body",
+        assign: list[str] | None = None,
+        frameId: int | None = None,
+        timeoutSec: int | None = None,
+    ) -> dict[str, Any]:
+        self.policy.ensure_write()
+        self._ensure_paused()
+        if not isinstance(script, str) or not script.strip():
+            raise AgentDebugError("invalid_arguments", "execute_page_script requires a non-empty script string.")
+        if not isinstance(selector, str) or not selector.strip():
+            raise AgentDebugError("invalid_arguments", "execute_page_script requires a non-empty selector.")
+        if assign is not None and not isinstance(assign, list):
+            raise AgentDebugError("invalid_arguments", "execute_page_script assign must be an array of variable names.")
+        result = {
+            "selector": selector,
+            "scriptLength": len(script),
+            "containsRobotTemplate": "${" in script,
+            "preview": self.policy.redactor.summarize("script", script),
+        }
+        assignments: dict[str, str] = {}
+        for target_name in assign or []:
+            canonical = self._canonical_name(target_name)
+            self.data.local_variables[canonical] = result
+            assignments[self._display_name(canonical)] = self.policy.redactor.summarize(canonical, result)
+        self.record_event("robot/agentAction", {"action": "executePageScript", "selector": selector})
+        return {
+            "status": "PASS",
+            "selector": selector,
+            "returnValueRepr": self.policy.redactor.summarize("return", result),
+            "assigned": assignments,
+            "executionPath": {"mode": "structured-demo", "escapedInterpolation": False},
+        }
 
     def _execute_node(self, node: Any) -> Any:
         kind = type(node).__name__

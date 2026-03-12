@@ -56,6 +56,43 @@ Evidence is captured in [docs/implementation/experiments.md](/home/many/workspac
 - [Risk Register](/home/many/workspace/robotframework-aidebug/docs/implementation/risk-register.md)
 - [Validation Baseline](/home/many/workspace/robotframework-aidebug/docs/implementation/validation.md)
 - [Benchmark Baseline](/home/many/workspace/robotframework-aidebug/docs/implementation/benchmark-results.md)
+- [AI Debug Cookbook](/home/many/workspace/robotframework-aidebug/docs/implementation/ai-debug-cookbook.md)
+- [AI Debug Session Retrospective 2026-03-09](/home/many/workspace/robotframework-aidebug/docs/implementation/ai-debug-session-retrospective-2026-03-09.md)
+- [AI Debug Maintainer Report 2026-03-09 Selector Suite](/home/many/workspace/robotframework-aidebug/docs/implementation/ai-debug-maintainer-report-2026-03-09-selector-suite.md)
+
+
+## Chat Agents
+
+- [ADR-008: Adopt Dual-Surface Chat Agent Integration](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-008-chat-agent-dual-surface.md)
+- [ADR-009: Make VS Code Language Model Tools The Primary Native Agent Interface](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-009-vscode-language-model-tools-first.md)
+- [ADR-010: Provide MCP Interoperability For Non-Native Agent Clients](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-010-mcp-interoperability-surface.md)
+- [ADR-011: Add A Specialized Chat Participant As An Optional Orchestration Layer](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-011-chat-participant-orchestration.md)
+- [ADR-012: Apply Governance, Confirmation, And Least-Privilege Rules Across All Agent Surfaces](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-012-agent-governance-and-safety.md)
+- [ADR-013: Budget For Token Usage, Interactive Latency, And Non-Blocking Execution](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-013-agent-performance-and-token-budgets.md)
+- [ADR-014: Manage Compatibility And Release Strategy By Client Surface](/home/many/workspace/robotframework-aidebug/docs/adr/ADR-014-chat-agent-compatibility-and-release-strategy.md)
+- [Chat Agents Overview](/home/many/workspace/robotframework-aidebug/docs/ddd/chat-agents-overview.md)
+- [Chat Agents Context Map](/home/many/workspace/robotframework-aidebug/docs/ddd/chat-agents-context-map.md)
+- [Chat Agents Domain Model](/home/many/workspace/robotframework-aidebug/docs/ddd/chat-agents-domain-model.md)
+- [Chat Agents Use Cases](/home/many/workspace/robotframework-aidebug/docs/ddd/chat-agents-use-cases.md)
+- [Chat Agents Commands And Events](/home/many/workspace/robotframework-aidebug/docs/ddd/chat-agents-commands-and-events.md)
+- [Chat Agent Experiment Results](/home/many/workspace/robotframework-aidebug/docs/implementation/chat-agents-experiments.md)
+- [Chat Agents Implementation Plan](/home/many/workspace/robotframework-aidebug/docs/implementation/chat-agents-plan.md)
+- [Chat Agents Execution Backlog](/home/many/workspace/robotframework-aidebug/docs/implementation/chat-agents-backlog.md)
+- [Chat Agent Spec Set](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/README.md)
+- [Tool Contracts](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-tool-contracts.md)
+- [Invocation Planner Contract](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-invocation-plans.md)
+- [Shared Core Architecture](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-shared-core-architecture.md)
+- [Execution Pipeline](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-execution-pipeline.md)
+- [Result Envelopes](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-result-envelopes.md)
+- [Failure Codes](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-failure-codes.md)
+- [Policy Matrix](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-policy-matrix.md)
+- [Token Budgets](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-token-budgets.md)
+- [Shared Core Test Fixtures](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-test-fixtures.md)
+- [VS Code LM Tool Surface](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-vscode-lm-tools.md)
+- [Chat Participant Surface](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-chat-participant.md)
+- [MCP Surface](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-mcp-surface.md)
+- [Compatibility And Hardening](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-compatibility-hardening.md)
+- [Production Readiness](/home/many/workspace/robotframework-aidebug/docs/implementation/specs/chat-agents-production-readiness.md)
 
 ## Recommended Reading Order
 

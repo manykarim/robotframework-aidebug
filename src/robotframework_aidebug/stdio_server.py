@@ -38,6 +38,8 @@ class BackendApplication:
             return self.toolbox.get_variables(variables_reference, **args)
         if command == "robot/getVariablesSnapshot":
             return self.toolbox.get_variables_snapshot(**args)
+        if command == "robot/getRuntimeContext":
+            return self.toolbox.get_runtime_context(**args)
         if command == "robot/getAuditLog":
             return self.toolbox.get_audit_log(args.get("limit", 20))
         if command == "evaluate":
@@ -48,6 +50,8 @@ class BackendApplication:
             return self.toolbox.set_variable(args["variablesReference"], args["name"], args["value"])
         if command == "robot/executeKeyword":
             return self.toolbox.execute_keyword(args["keyword"], args.get("args"), args.get("assign"))
+        if command == "robot/executePageScript":
+            return self.toolbox.execute_page_script(args["script"], args.get("selector", "body"), args.get("assign"))
         if command == "robot/executeSnippet":
             return self.toolbox.execute_snippet(args["snippet"])
         if command in {"continue", "pause", "next", "stepIn", "stepOut"}:

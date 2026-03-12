@@ -17,5 +17,5 @@ def test_main_outputs_demo_payload(capsys) -> None:
 def test_benchmark_runner_returns_measurements() -> None:
     payload = run_benchmarks(iterations=20)
     names = {entry["name"] for entry in payload["benchmarks"]}
-    assert {"get_state", "variables_snapshot", "execute_keyword", "execute_snippet_cached", "execute_snippet_cold", "set_variable"} <= names
+    assert {"get_state", "variables_snapshot", "execute_keyword", "execute_page_script", "execute_snippet_cached", "execute_snippet_cold", "set_variable"} <= names
     assert all(entry["avg_ms"] >= 0 for entry in payload["benchmarks"])

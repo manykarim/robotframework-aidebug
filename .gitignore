@@ -15,6 +15,10 @@ vscode-extension/node_modules/
 vscode-extension/.npm-cache/
 vscode-extension/*.tgz
 *.log
+output.xml
+log.html
+report.html
+playwright-log.txt
 
 # Virtual environments
 .venv

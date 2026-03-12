@@ -48,10 +48,14 @@ class DebugServer:
                 return self.session.get_execution_state(**args)
             case "robot/getVariablesSnapshot":
                 return self.session.get_variables_snapshot(**args)
+            case "robot/getRuntimeContext":
+                return self.session.get_runtime_context(**args)
             case "robot/getAuditLog":
                 return self.session.get_audit_log(**args)
             case "robot/executeKeyword":
                 return self.session.execute_keyword(**args)
+            case "robot/executePageScript":
+                return self.session.execute_page_script(**args)
             case "robot/executeSnippet":
                 return self.session.execute_snippet(**args)
             case "robot/sync":

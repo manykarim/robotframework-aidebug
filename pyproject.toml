@@ -6,6 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
+    "fastmcp>=3.1.0",
     "robotframework>=7.4.2",
 ]
 
@@ -18,6 +19,7 @@ Issues = "https://github.com/manykarim/robotframework-aidebug/issues"
 robotframework-aidebug = "robotframework_aidebug.cli:main"
 robotframework-aidebug-stdio = "robotframework_aidebug.stdio_server:main"
 robotframework-aidebug-dap = "robotframework_aidebug.dap_server:main"
+robotframework-aidebug-mcp = "robotframework_aidebug.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

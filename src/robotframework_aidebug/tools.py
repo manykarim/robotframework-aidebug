@@ -40,6 +40,9 @@ class AgentToolbox:
     def get_variables_snapshot(self, **arguments: Any) -> dict[str, Any]:
         return self.router.active_server().dispatch("robot/getVariablesSnapshot", arguments)
 
+    def get_runtime_context(self, **arguments: Any) -> dict[str, Any]:
+        return self.router.active_server().dispatch("robot/getRuntimeContext", arguments)
+
     def probe_capabilities(self) -> dict[str, Any]:
         return self.router.active_server().dispatch("robot/probeCapabilities", {})
 
@@ -62,6 +65,17 @@ class AgentToolbox:
         return self.router.active_server().dispatch(
             "robot/executeKeyword",
             {"keyword": keyword, "args": args or [], "assign": assign or [], "captureLog": True},
+        )
+
+    def execute_page_script(
+        self,
+        script: str,
+        selector: str = "body",
+        assign: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return self.router.active_server().dispatch(
+            "robot/executePageScript",
+            {"script": script, "selector": selector, "assign": assign or []},
         )
 
     def execute_snippet(self, snippet: str) -> dict[str, Any]:

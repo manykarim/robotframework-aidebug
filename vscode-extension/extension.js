@@ -1,8 +1,11 @@
 const vscode = require('vscode');
 const { BackendClient } = require('./backendClient');
+const { registerChatParticipant } = require('./chatParticipant');
 const { AidebugDebugAdapterFactory, AidebugDebugConfigurationProvider } = require('./debugAdapterFactory');
 const { defaultRobotProgram } = require('./debugLaunchConfig');
 const { runRecoveryJourney } = require('./journeys');
+const { registerLanguageModelTools } = require('./languageModelTools');
+const { registerMcpServerDefinitionProvider } = require('./mcpProvider');
 const { RuntimeStateCache } = require('./runtimeStateCache');
 const { SessionRouter } = require('./sessionRouter');
 const { extractStaticContext } = require('./staticContext');
@@ -104,6 +107,16 @@ async function activate(context) {
   context.subscriptions.push(vscode.debug.onDidTerminateDebugSession(session => runtimeCache.noteSessionStop(session)));
   context.subscriptions.push(vscode.debug.onDidChangeActiveDebugSession(session => runtimeCache.noteActiveSession(session)));
   context.subscriptions.push(vscode.debug.onDidReceiveDebugSessionCustomEvent(event => runtimeCache.handleCustomEvent(event)));
+
+  const surfaceDependencies = {
+    resolveTransport: () => ensureRouter().resolveTransport()
+  };
+  const lmTools = registerLanguageModelTools(context, vscode, surfaceDependencies);
+  const participant = registerChatParticipant(context, vscode, surfaceDependencies);
+  const mcpProvider = registerMcpServerDefinitionProvider(context, vscode, configuration, channel);
+  channel.appendLine(
+    `[agent-surfaces] lmTools=${lmTools.registered ? lmTools.count : 0} participant=${participant.registered} mcpProvider=${mcpProvider.registered}`
+  );
 
   register(context, 'robotframeworkAidebug.startBackend', async () => {
     const backend = ensureClient();
